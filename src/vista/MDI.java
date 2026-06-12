@@ -15,6 +15,9 @@ public class MDI extends javax.swing.JFrame {
      */
     public MDI() {
         initComponents();
+        
+        
+        System.out.println("HolAMUNDO");
     }
 
     /**
