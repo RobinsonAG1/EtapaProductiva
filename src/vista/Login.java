@@ -1,5 +1,6 @@
 package vista;
 
+import controlador.LoginControlador;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.*;
@@ -162,6 +163,7 @@ public class Login extends JFrame {
         btnIngresar.setForeground(Color.BLACK);
         btnIngresar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnIngresar.setPreferredSize(new Dimension(s(284), s(44)));
+        btnIngresar.addActionListener(e -> LoginControlador.login(txtCorreo, txtPassword, this));
         btnIngresar.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {
@@ -244,80 +246,34 @@ public class Login extends JFrame {
     }
 
     private JTextField createRoundedField(String placeholder, int radius) {
-        JTextField field = new JTextField(placeholder) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(hasFocus() ? new Color(0x36, 0x36, 0x36) : new Color(0x2c, 0x2c, 0x2c));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
-                Shape clip = new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), radius, radius);
-                g2.setClip(clip);
-                super.paintComponent(g);
-                g2.dispose();
-            }
-        };
-        field.setOpaque(false);
+        JTextField field = new JTextField();
+        field.setOpaque(true);
+        field.setBackground(new Color(0x2c, 0x2c, 0x2c));
+        field.setForeground(Color.WHITE);
+        field.setCaretColor(Color.WHITE);
+        field.setSelectedTextColor(Color.BLACK);
+        field.setSelectionColor(Color.WHITE);
         int padV = s(10);
         int padH = s(12);
         field.setBorder(new EmptyBorder(padV, padH, padV, padH));
-        field.setForeground(new Color(0x6b, 0x72, 0x80));
-        field.setCaretColor(Color.WHITE);
         field.setFont(new Font("Segoe UI", Font.PLAIN, s(13)));
         field.setPreferredSize(new Dimension(s(284), s(40)));
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                field.repaint();
-                if (placeholder.equals(field.getText()) && field.getForeground().getRGB() != Color.WHITE.getRGB()) {
-                    field.setText("");
-                    field.setForeground(Color.WHITE);
-                }
-            }
-            @Override
-            public void focusLost(FocusEvent e) {
-                field.repaint();
-                if (field.getText().isEmpty()) {
-                    field.setForeground(new Color(0x6b, 0x72, 0x80));
-                    field.setText(placeholder);
-                }
-            }
-        });
         return field;
     }
 
     private JPasswordField createRoundedPasswordField(int radius) {
-        JPasswordField field = new JPasswordField() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(hasFocus() ? new Color(0x36, 0x36, 0x36) : new Color(0x2c, 0x2c, 0x2c));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
-                Shape clip = new RoundRectangle2D.Double(0, 0, getWidth(), getHeight(), radius, radius);
-                g2.setClip(clip);
-                super.paintComponent(g);
-                g2.dispose();
-            }
-        };
-        field.setOpaque(false);
+        JPasswordField field = new JPasswordField();
+        field.setOpaque(true);
+        field.setBackground(new Color(0x2c, 0x2c, 0x2c));
+        field.setForeground(Color.WHITE);
+        field.setCaretColor(Color.WHITE);
+        field.setSelectedTextColor(Color.BLACK);
+        field.setSelectionColor(Color.WHITE);
         int padV = s(10);
         int padH = s(12);
         field.setBorder(new EmptyBorder(padV, padH, padV, padH));
-        field.setForeground(Color.WHITE);
-        field.setCaretColor(Color.WHITE);
         field.setFont(new Font("Segoe UI", Font.PLAIN, s(13)));
         field.setPreferredSize(new Dimension(s(284), s(40)));
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                field.repaint();
-            }
-            @Override
-            public void focusLost(FocusEvent e) {
-                field.repaint();
-            }
-        });
         return field;
     }
 

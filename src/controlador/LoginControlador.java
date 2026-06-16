@@ -32,7 +32,9 @@ public class LoginControlador {
         if ("admin@soy.sena.edu.co".equals(user) && "12345".equals(pass)) {
             loginFrame.dispose();
             java.awt.EventQueue.invokeLater(() -> {
-                new MDI().setVisible(true);
+                MDI mdi = new MDI();
+                mdi.setVisible(true);
+                mdi.abrirAdminDashboard();
             });
         } else {
             JOptionPane.showMessageDialog(loginFrame,
