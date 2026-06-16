@@ -31,6 +31,11 @@ public class AdminDashboard extends JInternalFrame {
         setMaximizable(true);
         setResizable(true);
         setDefaultCloseOperation(HIDE_ON_CLOSE);
+        setBorder(BorderFactory.createLineBorder(new Color(0x2a, 0x2a, 0x2a)));
+
+        // Apply modern UI for title bar
+        setUI(new ModernInternalFrameUI(this));
+
         setSize(1100, 700);
 
         JPanel root = new JPanel(new BorderLayout());
@@ -109,6 +114,7 @@ public class AdminDashboard extends JInternalFrame {
         userPanel.setBorder(new EmptyBorder(14, 16, 14, 16));
         userPanel.setMaximumSize(new Dimension(200, 60));
         userPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        userPanel.setOpaque(true);
 
         JPanel avatar = new JPanel() {
             @Override
@@ -305,20 +311,31 @@ public class AdminDashboard extends JInternalFrame {
                 }
                 @Override
                 public void mouseEntered(MouseEvent e) {
-                    hover = true;
-                    repaint();
+                    setHover(true);
                 }
                 @Override
                 public void mouseExited(MouseEvent e) {
-                    hover = false;
-                    repaint();
+                    setHover(false);
                 }
             });
+        }
+
+        @Override
+        public void addNotify() {
+            super.addNotify();
+            setOpaque(false);
         }
 
         void setActive(boolean a) {
             this.active = a;
             repaint();
+        }
+
+        void setHover(boolean h) {
+            if (this.hover != h) {
+                this.hover = h;
+                repaint();
+            }
         }
 
         @Override
@@ -329,12 +346,16 @@ public class AdminDashboard extends JInternalFrame {
             int w = getWidth();
             int h = getHeight();
 
+            // Full clear background
+            g2.setColor(BG_SIDEBAR);
+            g2.fillRect(0, 0, w, h);
+
             // Background highlight
             if (active || hover) {
                 if (active) {
-                    g2.setColor(new Color(0x22, 0xc5, 0x5e, 20));
+                    g2.setColor(new Color(0x22, 0xc5, 0x5e, 40));
                 } else {
-                    g2.setColor(new Color(0xff, 0xff, 0xff, 6));
+                    g2.setColor(new Color(0xff, 0xff, 0xff, 12));
                 }
                 g2.fillRoundRect(4, 2, w - 8, h - 4, 6, 6);
             }

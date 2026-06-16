@@ -15,6 +15,29 @@ public class MDI extends javax.swing.JFrame {
      */
     public MDI() {
         initComponents();
+        escritorio.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
+            public void componentResized(java.awt.event.ComponentEvent e) {
+                resizeInternalFrames();
+            }
+        });
+    }
+
+    private void resizeInternalFrames() {
+        java.awt.Dimension size = escritorio.getSize();
+        for (javax.swing.JInternalFrame frame : escritorio.getAllFrames()) {
+            if (frame.isMaximum()) {
+                try {
+                    frame.setMaximum(false);
+                    frame.setBounds(0, 0, size.width, size.height);
+                    frame.setMaximum(true);
+                } catch (java.beans.PropertyVetoException ex) {
+                    frame.setBounds(0, 0, size.width, size.height);
+                }
+            } else {
+                frame.setBounds(0, 0, size.width, size.height);
+            }
+        }
     }
 
     /**
@@ -139,6 +162,7 @@ public class MDI extends javax.swing.JFrame {
     public void abrirAdminDashboard() {
         AdminDashboard dashboard = new AdminDashboard();
         escritorio.add(dashboard);
+        dashboard.setBounds(0, 0, escritorio.getWidth(), escritorio.getHeight());
         dashboard.setVisible(true);
     }
 
