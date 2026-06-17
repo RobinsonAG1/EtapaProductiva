@@ -26,9 +26,129 @@ public class AdminDashboard extends JInternalFrame {
     private CardLayout contentLayout;
     private JPanel contentStack;
     private JLabel headerTitle;
+    private JLabel[] statValues;
+    private DefaultTableModel dashboardTableModel;
+    private DefaultTableModel fichasTableModel;
 
     public AdminDashboard() {
         initComponents();
+        javax.swing.SwingUtilities.invokeLater(this::cargarDatosDashboard);
+    }
+
+    private void cargarDatosDashboard() {
+        new Thread(() -> {
+            try {
+                dao.UsuarioDAO uDao = new dao.UsuarioDAO();
+                dao.AprendizDAO aDao = new dao.AprendizDAO();
+                dao.InstructorDAO iDao = new dao.InstructorDAO();
+                dao.EmpresaDAO eDao = new dao.EmpresaDAO();
+                dao.CursoDAO cDao = new dao.CursoDAO();
+
+                int totalUsuarios = uDao.contarTotal();
+                int totalAprendices = aDao.contarTotal();
+                int totalInstructores = iDao.contarTotal();
+                int totalEmpresas = eDao.contarTotal();
+                int totalCursos = cDao.contarTotal();
+
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    if (statValues != null && statValues.length >= 5) {
+                        statValues[0].setText(String.valueOf(totalUsuarios));
+                        statValues[1].setText(String.valueOf(totalAprendices));
+                        statValues[2].setText(String.valueOf(totalInstructores));
+                        statValues[3].setText(String.valueOf(totalEmpresas));
+                        statValues[4].setText(String.valueOf(totalCursos));
+                    }
+                });
+
+                // Cargar actividad reciente
+                cargarActividadReciente();
+
+            } catch (Exception ex) {
+                System.err.println("[DASHBOARD] Error al cargar datos: " + ex.getMessage());
+            }
+        }).start();
+    }
+
+    private void cargarActividadReciente() {
+        new Thread(() -> {
+            try {
+                java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                String sql = "SELECT h.fecha, u.nombres || ' ' || u.apellidos as usuario, "
+                           + "h.modulo, h.accion, h.descripcion "
+                           + "FROM historial_cambios h "
+                           + "JOIN usuario u ON h.id_usuario = u.id_usuario "
+                           + "ORDER BY h.fecha DESC LIMIT 10";
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                     java.sql.ResultSet rs = ps.executeQuery()) {
+
+                    java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        Object[] row = new Object[5];
+                        row[0] = rs.getTimestamp("fecha") != null
+                                ? rs.getTimestamp("fecha").toString().substring(0, 19)
+                                : "";
+                        row[1] = rs.getString("usuario");
+                        row[2] = rs.getString("modulo");
+                        row[3] = rs.getString("accion");
+                        row[4] = rs.getString("descripcion");
+                        filas.add(row);
+                    }
+
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        if (dashboardTableModel != null) {
+                            dashboardTableModel.setRowCount(0);
+                            for (Object[] row : filas) {
+                                dashboardTableModel.addRow(row);
+                            }
+                        }
+                    });
+                }
+                conn.close();
+            } catch (Exception ex) {
+                System.err.println("[DASHBOARD] Error al cargar actividad: " + ex.getMessage());
+            }
+        }).start();
+    }
+
+    private void cargarFichas() {
+        new Thread(() -> {
+            try {
+                String sql = "SELECT c.id_curso, c.ficha, c.nombre, c.fecha_inicio, c.fecha_fin, "
+                           + "COALESCE(i_count.total, 0) as instructores, "
+                           + "COALESCE(a_count.total, 0) as aprendices "
+                           + "FROM curso c "
+                           + "LEFT JOIN (SELECT id_curso, COUNT(*) as total FROM curso_instructor GROUP BY id_curso) i_count ON c.id_curso = i_count.id_curso "
+                           + "LEFT JOIN (SELECT id_curso, COUNT(*) as total FROM curso_aprendiz GROUP BY id_curso) a_count ON c.id_curso = a_count.id_curso";
+                try (java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                     java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                     java.sql.ResultSet rs = ps.executeQuery()) {
+
+                    java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        String ficha = rs.getString("ficha");
+                        if (ficha == null || ficha.trim().isEmpty()) ficha = "FIC-" + rs.getInt("id_curso");
+                        String nombre = rs.getString("nombre");
+                        String instructores = String.valueOf(rs.getInt("instructores"));
+                        String aprendices = String.valueOf(rs.getInt("aprendices"));
+                        String inicio = rs.getDate("fecha_inicio") != null ? rs.getDate("fecha_inicio").toString() : "";
+                        String fin = rs.getDate("fecha_fin") != null ? rs.getDate("fecha_fin").toString() : "";
+                        String estado = "Activo";
+                        filas.add(new Object[]{ficha, nombre, instructores, aprendices, estado, inicio, fin});
+                    }
+
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        if (fichasTableModel != null) {
+                            fichasTableModel.setRowCount(0);
+                            for (Object[] row : filas) {
+                                fichasTableModel.addRow(row);
+                            }
+                        }
+                    });
+                }
+            } catch (Exception ex) {
+                System.err.println("[DASHBOARD] Error al cargar fichas: " + ex.getMessage());
+            }
+        }).start();
     }
 
     private void initComponents() {
@@ -217,15 +337,46 @@ public class AdminDashboard extends JInternalFrame {
 
         contentStack.add(createDashboardView(), "Panel");
         contentStack.add(createFichasView(), "Fichas/Cursos");
-        contentStack.add(createPlaceholderView("Gesti\u00f3n de Usuarios"), "Usuarios");
-        contentStack.add(createPlaceholderView("Administraci\u00f3n de Roles"), "Roles");
-        contentStack.add(createPlaceholderView("Gesti\u00f3n de Instructores"), "Instructores");
-        contentStack.add(createPlaceholderView("Gesti\u00f3n de Empresas"), "Empresas");
-        contentStack.add(createPlaceholderView("Historial del Sistema"), "Historial");
-        contentStack.add(createPlaceholderView("Respaldos y Seguridad"), "Backup");
+        contentStack.add(createUsuariosView(), "Usuarios");
+        contentStack.add(createRolesView(), "Roles");
+        contentStack.add(createInstructoresView(), "Instructores");
+        contentStack.add(createEmpresasView(), "Empresas");
+        contentStack.add(createHistorialView(), "Historial");
+        contentStack.add(createBackupView(), "Backup");
 
         contentArea.add(contentStack, BorderLayout.CENTER);
         return contentArea;
+    }
+
+    private void estilizarTabla(JTable table) {
+        table.setBackground(BG_DARK);
+        table.setForeground(TXT_SECONDARY);
+        table.setGridColor(BORDER);
+        table.setSelectionBackground(BG_CARD);
+        table.setSelectionForeground(Color.WHITE);
+        table.setRowHeight(36);
+        table.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        table.setShowHorizontalLines(true);
+        table.setShowVerticalLines(false);
+
+        table.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
+                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, s, f, r, c);
+                lbl.setBackground(BG_SIDEBAR);
+                lbl.setForeground(TXT_SECONDARY);
+                lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                lbl.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
+                        BorderFactory.createEmptyBorder(10, 8, 10, 8)));
+                lbl.setHorizontalAlignment(LEFT);
+                return lbl;
+            }
+        });
+        table.getTableHeader().setBackground(BG_SIDEBAR);
+        table.getTableHeader().setForeground(TXT_SECONDARY);
+        table.getTableHeader().setReorderingAllowed(false);
+        table.getTableHeader().setResizingAllowed(false);
     }
 
     // ── View panels ──────────────────────────────────────────
@@ -241,11 +392,13 @@ public class AdminDashboard extends JInternalFrame {
         statsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         statsRow.setMaximumSize(new Dimension(Short.MAX_VALUE, 150));
 
-        statsRow.add(new StatCard("TOTAL USUARIOS", "16", MenuIconType.PEOPLE, PURPLE, "Ver Usuarios"));
-        statsRow.add(new StatCard("APRENDICES", "12", MenuIconType.BOOK, BLUE, "Ver Usuarios"));
-        statsRow.add(new StatCard("INSTRUCTORES", "3", MenuIconType.PERSON, GREEN, "Ver Instructores"));
-        statsRow.add(new StatCard("EMPRESAS", "5", MenuIconType.BUILDING, ORANGE, "Ver Empresas"));
-        statsRow.add(new StatCard("FICHAS", "1", MenuIconType.GRID, GREEN, "Gestionar Fichas"));
+        statValues = new JLabel[5];
+
+        statsRow.add(new StatCard("TOTAL USUARIOS", "16", MenuIconType.PEOPLE, PURPLE, "Ver Usuarios", statValues, 0));
+        statsRow.add(new StatCard("APRENDICES", "12", MenuIconType.BOOK, BLUE, "Ver Usuarios", statValues, 1));
+        statsRow.add(new StatCard("INSTRUCTORES", "3", MenuIconType.PERSON, GREEN, "Ver Instructores", statValues, 2));
+        statsRow.add(new StatCard("EMPRESAS", "5", MenuIconType.BUILDING, ORANGE, "Ver Empresas", statValues, 3));
+        statsRow.add(new StatCard("FICHAS", "1", MenuIconType.GRID, GREEN, "Gestionar Fichas", statValues, 4));
 
         body.add(statsRow);
         body.add(Box.createRigidArea(new Dimension(0, 24)));
@@ -282,20 +435,9 @@ public class AdminDashboard extends JInternalFrame {
         activityPanel.add(activityHeader, BorderLayout.NORTH);
 
         String[] columns = {"FECHA", "USUARIO RESPONSABLE", "M\u00d3DULO", "ACCI\u00d3N", "DESCRIPCI\u00d3N"};
-        DefaultTableModel tableModel = new DefaultTableModel(columns, 0);
+        dashboardTableModel = new DefaultTableModel(columns, 0);
 
-        tableModel.addRow(new Object[]{"2026-05-25 13:52:19", "Administrador Sistema SENA", "EMPRESAS", "MODIFICAR", "Empresa 3 editada"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:52:03", "Administrador Sistema SENA", "USUARIOS", "MODIFICAR", "Usuario instructor 1 editado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:51:46", "Administrador Sistema SENA", "APRENDICES", "CREAR", "Aprendiz 9 creado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:51:24", "Administrador Sistema SENA", "APRENDICES", "MODIFICAR", "Aprendiz 12 aprobado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:51:07", "Administrador Sistema SENA", "USUARIOS", "ELIMINAR", "Usuario instructor 4 eliminado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:50:47", "Administrador Sistema SENA", "EMPRESAS", "MODIFICAR", "Empresa 2 editada"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:50:32", "Administrador Sistema SENA", "INSTRUCTORES", "CREAR", "Instructor nuevo asignado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:50:17", "Administrador Sistema SENA", "USUARIOS", "CREAR", "Usuario administrativo creado"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:49:56", "Administrador Sistema SENA", "EMPRESAS", "CREAR", "Nueva empresa registrada"});
-        tableModel.addRow(new Object[]{"2026-05-25 13:49:37", "Administrador Sistema SENA", "FICHAS", "MODIFICAR", "Ficha 1 actualizada"});
-
-        JTable table = new JTable(tableModel) {
+        JTable table = new JTable(dashboardTableModel) {
             @Override
             public boolean isCellEditable(int r, int c) {
                 return false;
@@ -392,10 +534,9 @@ public class AdminDashboard extends JInternalFrame {
         tablePanel.add(tableHeaderP, BorderLayout.NORTH);
 
         String[] columns = {"C\u00d3DIGO", "NOMBRE DEL CURSO", "INSTRUCTOR", "APRENDICES", "ESTADO", "INICIO", "FIN"};
-        DefaultTableModel tm = new DefaultTableModel(columns, 0);
-        tm.addRow(new Object[]{"FIC-001", "An\u00e1lisis y Desarrollo de Software", "Carlos M\u00e9ndez", "12", "Activo", "2026-02-10", "2027-08-15"});
+        fichasTableModel = new DefaultTableModel(columns, 0);
 
-        JTable t = new JTable(tm) {
+        JTable t = new JTable(fichasTableModel) {
             @Override
             public boolean isCellEditable(int r, int c) { return false; }
         };
@@ -436,6 +577,375 @@ public class AdminDashboard extends JInternalFrame {
 
         tablePanel.add(sp, BorderLayout.CENTER);
         body.add(tablePanel);
+
+        cargarFichas();
+
+        return body;
+    }
+
+    private JPanel createUsuariosView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        topBar.setBorder(new EmptyBorder(16, 0, 16, 0));
+
+        JLabel countLabel = new JLabel("Cargando...");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        countLabel.setForeground(TXT_SECONDARY);
+
+        topBar.add(countLabel, BorderLayout.WEST);
+        body.add(topBar, BorderLayout.NORTH);
+
+        String[] columns = {"NOMBRES", "APELLIDOS", "CORREO", "TEL\u00c9FONO", "DOCUMENTO", "ESTADO"};
+        DefaultTableModel tm = new DefaultTableModel(columns, 0);
+        JTable table = new JTable(tm) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        estilizarTabla(table);
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(BG_DARK);
+
+        body.add(sp, BorderLayout.CENTER);
+
+        // Cargar datos
+        new Thread(() -> {
+            try {
+                java.util.List<modelo.Usuario> lista = new dao.UsuarioDAO().listarTodos();
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    tm.setRowCount(0);
+                    for (modelo.Usuario u : lista) {
+                        tm.addRow(new Object[]{
+                            u.getNombres(), u.getApellidos(), u.getCorreo(),
+                            u.getTelefono() != null ? u.getTelefono() : "",
+                            u.getNumeroDocumento() != null ? u.getNumeroDocumento() : "",
+                            u.getEstado() ? "Activo" : "Inactivo"
+                        });
+                    }
+                    countLabel.setText("Total: " + lista.size() + " usuarios");
+                });
+            } catch (Exception ex) {
+                javax.swing.SwingUtilities.invokeLater(() -> countLabel.setText("Error al cargar usuarios"));
+            }
+        }).start();
+
+        return body;
+    }
+
+    private JPanel createInstructoresView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        // Toolbar
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        toolbar.setOpaque(false);
+        toolbar.setBorder(new EmptyBorder(16, 0, 16, 0));
+
+        JButton btnNuevo = crearBotonAccion("+ Nuevo Instructor", GREEN);
+        JButton btnEditar = crearBotonAccion("\u270E  Editar", BLUE);
+        JButton btnEliminar = crearBotonAccion("\u2716  Desactivar", ORANGE);
+
+        JLabel countLabel = new JLabel("Cargando...");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        countLabel.setForeground(TXT_SECONDARY);
+
+        toolbar.add(btnNuevo);
+        toolbar.add(Box.createRigidArea(new Dimension(8, 0)));
+        toolbar.add(btnEditar);
+        toolbar.add(Box.createRigidArea(new Dimension(8, 0)));
+        toolbar.add(btnEliminar);
+        toolbar.add(Box.createHorizontalGlue());
+        toolbar.add(countLabel);
+
+        body.add(toolbar, BorderLayout.NORTH);
+
+        // Tabla
+        String[] columns = {"ID", "NOMBRES", "APELLIDOS", "CORREO", "TEL\u00c9FONO", "\u00c1REA", "CURSOS", "ESTADO"};
+        DefaultTableModel tm = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(tm);
+        estilizarTabla(table);
+        table.removeColumn(table.getColumnModel().getColumn(0));
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(BG_DARK);
+
+        body.add(sp, BorderLayout.CENTER);
+
+        // Acciones
+        btnNuevo.addActionListener(e -> mostrarDialogoInstructor(null, tm, countLabel));
+        btnEditar.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Selecciona un instructor de la tabla.", "Editar", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int id = (int) tm.getValueAt(row, 0);
+            mostrarDialogoInstructor(id, tm, countLabel);
+        });
+        btnEliminar.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                JOptionPane.showMessageDialog(this, "Selecciona un instructor de la tabla.", "Desactivar", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            int id = (int) tm.getValueAt(row, 0);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "\u00bfDesactivar instructor " + tm.getValueAt(row, 1) + " " + tm.getValueAt(row, 2) + "?",
+                    "Confirmar", JOptionPane.YES_NO_OPTION);
+            if (confirm == JOptionPane.YES_OPTION) {
+                dao.InstructorDAO iDao = new dao.InstructorDAO();
+                modelo.Instructor inst = iDao.buscarPorId(id);
+                if (inst != null) {
+                    inst.setActivo(false);
+                    iDao.actualizar(inst);
+                    cargarInstructoresTabla(tm, countLabel);
+                }
+            }
+        });
+
+        cargarInstructoresTabla(tm, countLabel);
+
+        return body;
+    }
+
+    private void cargarInstructoresTabla(DefaultTableModel tm, JLabel countLabel) {
+        new Thread(() -> {
+            try {
+                java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                String sql = "SELECT i.id_instructor, u.nombres, u.apellidos, u.correo, u.telefono, "
+                           + "i.area_formacion, i.activo, "
+                           + "COALESCE(c_count.total, 0) as cursos "
+                           + "FROM instructor i "
+                           + "JOIN usuario u ON i.id_usuario = u.id_usuario "
+                           + "LEFT JOIN (SELECT id_instructor, COUNT(*) as total FROM curso_instructor GROUP BY id_instructor) c_count ON i.id_instructor = c_count.id_instructor";
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                     java.sql.ResultSet rs = ps.executeQuery()) {
+
+                    java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        filas.add(new Object[]{
+                            rs.getInt("id_instructor"),
+                            rs.getString("nombres"),
+                            rs.getString("apellidos"),
+                            rs.getString("correo"),
+                            rs.getString("telefono") != null ? rs.getString("telefono") : "",
+                            rs.getString("area_formacion") != null ? rs.getString("area_formacion") : "",
+                            rs.getInt("cursos"),
+                            rs.getBoolean("activo") ? "Activo" : "Inactivo"
+                        });
+                    }
+
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        tm.setRowCount(0);
+                        for (Object[] row : filas) tm.addRow(row);
+                        countLabel.setText("Total: " + filas.size() + " instructores");
+                    });
+                }
+                conn.close();
+            } catch (Exception ex) {
+                System.err.println("[INSTRUCTORES] Error: " + ex.getMessage());
+            }
+        }).start();
+    }
+
+    private void mostrarDialogoInstructor(Integer idInstructor, DefaultTableModel tm, JLabel countLabel) {
+        boolean esNuevo = (idInstructor == null);
+        modelo.Instructor inst = null;
+        modelo.Usuario usr = null;
+
+        if (!esNuevo) {
+            dao.InstructorDAO iDao = new dao.InstructorDAO();
+            inst = iDao.buscarPorId(idInstructor);
+            if (inst != null) usr = new dao.UsuarioDAO().buscarPorId(inst.getIdUsuario());
+        }
+
+        final modelo.Instructor instF = inst;
+        final modelo.Usuario usrF = usr;
+
+        JTextField txtNombres = new JTextField(usrF != null ? usrF.getNombres() : "");
+        JTextField txtApellidos = new JTextField(usrF != null ? usrF.getApellidos() : "");
+        JTextField txtCorreo = new JTextField(usrF != null ? usrF.getCorreo() : "");
+        JTextField txtTelefono = new JTextField(usrF != null ? usrF.getTelefono() : "");
+        JTextField txtArea = new JTextField(instF != null ? instF.getAreaFormacion() : "");
+        JTextField txtPassword = new JTextField(esNuevo ? "" : "********");
+
+        JPanel form = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        gbc.insets = new Insets(4, 8, 4, 8);
+
+        String[] labels = {"Nombres*:", "Apellidos*:", "Correo*:", "Tel\u00e9fono:", "\u00c1rea Formaci\u00f3n:", "Contrase\u00f1a*:"};
+        JTextField txtPassField = txtPassword;
+        if (!esNuevo) { txtPassField = new JTextField("********"); txtPassField.setEditable(false); }
+        JTextField[] campos = {txtNombres, txtApellidos, txtCorreo, txtTelefono, txtArea, txtPassField};
+
+        for (int i = 0; i < labels.length; i++) {
+            gbc.gridx = 0; gbc.gridy = i;
+            gbc.weightx = 0;
+            gbc.insets = new Insets(4, 8, 4, 4);
+            form.add(new JLabel(labels[i]), gbc);
+            gbc.gridx = 1; gbc.weightx = 1;
+            gbc.insets = new Insets(4, 4, 4, 8);
+            form.add(campos[i], gbc);
+        }
+
+        int result = JOptionPane.showConfirmDialog(this, form,
+                esNuevo ? "Nuevo Instructor" : "Editar Instructor",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+
+        if (result != JOptionPane.OK_OPTION) return;
+
+        String nombres = txtNombres.getText().trim();
+        String apellidos = txtApellidos.getText().trim();
+        String correo = txtCorreo.getText().trim();
+        String telefono = txtTelefono.getText().trim();
+        String area = txtArea.getText().trim();
+
+        if (nombres.isEmpty() || apellidos.isEmpty() || correo.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Nombres, apellidos y correo son obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                if (esNuevo) {
+                    String pass = txtPassword.getText().trim();
+                    if (pass.isEmpty()) {
+                        javax.swing.SwingUtilities.invokeLater(() ->
+                            JOptionPane.showMessageDialog(this, "La contrase\u00f1a es obligatoria.", "Error", JOptionPane.ERROR_MESSAGE));
+                        return;
+                    }
+                    modelo.Usuario nuevoUsr = new modelo.Usuario();
+                    nuevoUsr.setNombres(nombres);
+                    nuevoUsr.setApellidos(apellidos);
+                    nuevoUsr.setCorreo(correo);
+                    nuevoUsr.setTelefono(telefono);
+                    nuevoUsr.setPasswordHash(controlador.PasswordUtils.hash(pass));
+                    nuevoUsr.setEstado(true);
+                    nuevoUsr.setFechaCreacion(new java.sql.Timestamp(System.currentTimeMillis()));
+
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    String sql = "INSERT INTO usuario (nombres, apellidos, correo, telefono, password_hash, estado, fecha_creacion) "
+                               + "VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id_usuario";
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, nuevoUsr.getNombres());
+                        ps.setString(2, nuevoUsr.getApellidos());
+                        ps.setString(3, nuevoUsr.getCorreo());
+                        ps.setString(4, nuevoUsr.getTelefono());
+                        ps.setString(5, nuevoUsr.getPasswordHash());
+                        ps.setBoolean(6, nuevoUsr.getEstado());
+                        ps.setTimestamp(7, nuevoUsr.getFechaCreacion());
+                        try (java.sql.ResultSet rs = ps.executeQuery()) {
+                            rs.next();
+                            int idUsuario = rs.getInt(1);
+                            String sqlRol = "INSERT INTO usuario_rol (id_usuario, id_rol) "
+                                          + "SELECT ?, id_rol FROM rol WHERE nombre = 'instructor'";
+                            try (java.sql.PreparedStatement ps2 = conn.prepareStatement(sqlRol)) {
+                                ps2.setInt(1, idUsuario);
+                                ps2.executeUpdate();
+                            }
+                            String sqlInst = "INSERT INTO instructor (id_usuario, area_formacion, activo) VALUES (?, ?, true)";
+                            try (java.sql.PreparedStatement ps3 = conn.prepareStatement(sqlInst)) {
+                                ps3.setInt(1, idUsuario);
+                                ps3.setString(2, area.isEmpty() ? null : area);
+                                ps3.executeUpdate();
+                            }
+                        }
+                    }
+                    conn.close();
+                } else {
+                    usrF.setNombres(nombres);
+                    usrF.setApellidos(apellidos);
+                    usrF.setCorreo(correo);
+                    usrF.setTelefono(telefono);
+                    new dao.UsuarioDAO().actualizar(usrF);
+                    if (instF != null) {
+                        instF.setAreaFormacion(area.isEmpty() ? null : area);
+                        new dao.InstructorDAO().actualizar(instF);
+                    }
+                }
+                javax.swing.SwingUtilities.invokeLater(() -> cargarInstructoresTabla(tm, countLabel));
+            } catch (Exception ex) {
+                javax.swing.SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            }
+        }).start();
+    }
+
+    private JButton crearBotonAccion(String text, Color bg) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        btn.setForeground(bg == GREEN || bg == BLUE || bg == ORANGE ? Color.BLACK : Color.WHITE);
+        btn.setBackground(bg);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(bg.darker(), 1),
+                BorderFactory.createEmptyBorder(8, 16, 8, 16)));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setFocusPainted(false);
+        return btn;
+    }
+
+    private JPanel createEmpresasView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        topBar.setBorder(new EmptyBorder(16, 0, 16, 0));
+
+        JLabel countLabel = new JLabel("Cargando...");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        countLabel.setForeground(TXT_SECONDARY);
+
+        topBar.add(countLabel, BorderLayout.WEST);
+        body.add(topBar, BorderLayout.NORTH);
+
+        String[] columns = {"NIT", "NOMBRE", "DIRECCI\u00d3N", "TEL\u00c9FONO", "CONTACTO", "ESTADO"};
+        DefaultTableModel tm = new DefaultTableModel(columns, 0);
+        JTable table = new JTable(tm) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        estilizarTabla(table);
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(BG_DARK);
+
+        body.add(sp, BorderLayout.CENTER);
+
+        new Thread(() -> {
+            try {
+                java.util.List<modelo.Empresa> lista = new dao.EmpresaDAO().listarTodas();
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    tm.setRowCount(0);
+                    for (modelo.Empresa e : lista) {
+                        tm.addRow(new Object[]{
+                            e.getNit() != null ? e.getNit() : "",
+                            e.getNombre(),
+                            e.getDireccion() != null ? e.getDireccion() : "",
+                            e.getTelefono() != null ? e.getTelefono() : "",
+                            e.getContacto() != null ? e.getContacto() : "",
+                            e.getActiva() ? "Activa" : "Inactiva"
+                        });
+                    }
+                    countLabel.setText("Total: " + lista.size() + " empresas");
+                });
+            } catch (Exception ex) {
+                javax.swing.SwingUtilities.invokeLater(() -> countLabel.setText("Error al cargar empresas"));
+            }
+        }).start();
 
         return body;
     }
@@ -484,6 +994,355 @@ public class AdminDashboard extends JInternalFrame {
         card.add(valueLbl);
 
         return card;
+    }
+
+    // ── Roles ─────────────────────────────────────────────────
+    private JPanel createRolesView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        JPanel toolbar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        toolbar.setOpaque(false);
+        toolbar.setBorder(new EmptyBorder(16, 0, 16, 0));
+
+        JButton btnNuevo = crearBotonAccion("+ Nuevo Rol", GREEN);
+        JButton btnEditar = crearBotonAccion("\u270E  Editar", BLUE);
+        JButton btnEliminar = crearBotonAccion("\u2716  Eliminar", ORANGE);
+
+        JLabel countLabel = new JLabel("Cargando...");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        countLabel.setForeground(TXT_SECONDARY);
+
+        toolbar.add(btnNuevo);
+        toolbar.add(Box.createRigidArea(new Dimension(8, 0)));
+        toolbar.add(btnEditar);
+        toolbar.add(Box.createRigidArea(new Dimension(8, 0)));
+        toolbar.add(btnEliminar);
+        toolbar.add(Box.createHorizontalGlue());
+        toolbar.add(countLabel);
+
+        body.add(toolbar, BorderLayout.NORTH);
+
+        String[] columns = {"ID", "NOMBRE", "DESCRIPCI\u00d3N", "USUARIOS"};
+        DefaultTableModel tm = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(tm);
+        estilizarTabla(table);
+        table.removeColumn(table.getColumnModel().getColumn(0));
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(BG_DARK);
+        body.add(sp, BorderLayout.CENTER);
+
+        Runnable cargar = () -> {
+            new Thread(() -> {
+                try {
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    String sql = "SELECT r.id_rol, r.nombre, r.descripcion, COUNT(ur.id_usuario) as usuarios "
+                               + "FROM rol r LEFT JOIN usuario_rol ur ON r.id_rol = ur.id_rol "
+                               + "GROUP BY r.id_rol, r.nombre, r.descripcion ORDER BY r.id_rol";
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                         java.sql.ResultSet rs = ps.executeQuery()) {
+                        java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                        while (rs.next()) filas.add(new Object[]{
+                            rs.getInt("id_rol"), rs.getString("nombre"),
+                            rs.getString("descripcion") != null ? rs.getString("descripcion") : "",
+                            rs.getInt("usuarios")
+                        });
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            tm.setRowCount(0);
+                            for (Object[] r : filas) tm.addRow(r);
+                            countLabel.setText("Total: " + filas.size() + " roles");
+                        });
+                    }
+                    conn.close();
+                } catch (Exception ex) {
+                    System.err.println("[ROLES] Error: " + ex.getMessage());
+                }
+            }).start();
+        };
+        cargar.run();
+
+        btnNuevo.addActionListener(e -> {
+            JTextField txtNombre = new JTextField();
+            JTextField txtDesc = new JTextField();
+            JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
+            form.add(new JLabel("Nombre*:"));
+            form.add(txtNombre);
+            form.add(new JLabel("Descripci\u00f3n:"));
+            form.add(txtDesc);
+            int r = JOptionPane.showConfirmDialog(this, form, "Nuevo Rol", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (r != JOptionPane.OK_OPTION) return;
+            String nom = txtNombre.getText().trim();
+            if (nom.isEmpty()) { JOptionPane.showMessageDialog(this, "El nombre es obligatorio."); return; }
+            new Thread(() -> {
+                try {
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    String sql = "INSERT INTO rol (nombre, descripcion) VALUES (?, ?)";
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, nom);
+                        ps.setString(2, txtDesc.getText().trim().isEmpty() ? null : txtDesc.getText().trim());
+                        ps.executeUpdate();
+                    }
+                    conn.close();
+                    javax.swing.SwingUtilities.invokeLater(cargar);
+                } catch (Exception ex) {
+                    javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()));
+                }
+            }).start();
+        });
+
+        btnEditar.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona un rol."); return; }
+            int id = (int) tm.getValueAt(row, 0);
+            String nomActual = (String) tm.getValueAt(row, 1);
+            String descActual = (String) tm.getValueAt(row, 2);
+            JTextField txtNombre = new JTextField(nomActual);
+            JTextField txtDesc = new JTextField(descActual);
+            JPanel form = new JPanel(new GridLayout(2, 2, 8, 8));
+            form.add(new JLabel("Nombre:"));
+            form.add(txtNombre);
+            form.add(new JLabel("Descripci\u00f3n:"));
+            form.add(txtDesc);
+            int r = JOptionPane.showConfirmDialog(this, form, "Editar Rol", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (r != JOptionPane.OK_OPTION) return;
+            new Thread(() -> {
+                try {
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    String sql = "UPDATE rol SET nombre = ?, descripcion = ? WHERE id_rol = ?";
+                    try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, txtNombre.getText().trim());
+                        ps.setString(2, txtDesc.getText().trim().isEmpty() ? null : txtDesc.getText().trim());
+                        ps.setInt(3, id);
+                        ps.executeUpdate();
+                    }
+                    conn.close();
+                    javax.swing.SwingUtilities.invokeLater(cargar);
+                } catch (Exception ex) {
+                    javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()));
+                }
+            }).start();
+        });
+
+        btnEliminar.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) { JOptionPane.showMessageDialog(this, "Selecciona un rol."); return; }
+            int id = (int) tm.getValueAt(row, 0);
+            String nom = (String) tm.getValueAt(row, 1);
+            int confirm = JOptionPane.showConfirmDialog(this, "\u00bfEliminar rol \"" + nom + "\"?", "Confirmar", JOptionPane.YES_NO_OPTION);
+            if (confirm != JOptionPane.YES_OPTION) return;
+            new Thread(() -> {
+                try {
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    conn.setAutoCommit(false);
+                    try {
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM usuario_rol WHERE id_rol = ?")) {
+                            ps.setInt(1, id); ps.executeUpdate();
+                        }
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement("DELETE FROM rol WHERE id_rol = ?")) {
+                            ps.setInt(1, id); ps.executeUpdate();
+                        }
+                        conn.commit();
+                    } catch (Exception ex) {
+                        conn.rollback(); throw ex;
+                    }
+                    conn.close();
+                    javax.swing.SwingUtilities.invokeLater(cargar);
+                } catch (Exception ex) {
+                    javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()));
+                }
+            }).start();
+        });
+
+        return body;
+    }
+
+    // ── Historial ──────────────────────────────────────────────
+    private JPanel createHistorialView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        JLabel countLabel = new JLabel("Cargando...");
+        countLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        countLabel.setForeground(TXT_SECONDARY);
+        countLabel.setBorder(new EmptyBorder(16, 0, 16, 0));
+        body.add(countLabel, BorderLayout.NORTH);
+
+        String[] columns = {"ID", "TABLA", "ID REGISTRO", "OPERACI\u00d3N", "VALOR ANTERIOR", "VALOR NUEVO", "USUARIO", "FECHA"};
+        DefaultTableModel tm = new DefaultTableModel(columns, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(tm);
+        estilizarTabla(table);
+        table.removeColumn(table.getColumnModel().getColumn(0));
+        table.setRowHeight(28);
+
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createEmptyBorder());
+        sp.getViewport().setBackground(BG_DARK);
+        body.add(sp, BorderLayout.CENTER);
+
+        new Thread(() -> {
+            try {
+                java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                String sql = "SELECT h.id_cambio, h.tabla_afectada, h.id_registro, h.tipo_operacion, "
+                           + "h.valor_anterior, h.valor_nuevo, "
+                           + "COALESCE(u.nombres || ' ' || u.apellidos, 'Sistema') as usuario, "
+                           + "h.fecha_cambio "
+                           + "FROM historial_cambios h "
+                           + "LEFT JOIN usuario u ON h.id_usuario = u.id_usuario "
+                           + "ORDER BY h.fecha_cambio DESC LIMIT 500";
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(sql);
+                     java.sql.ResultSet rs = ps.executeQuery()) {
+                    java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                    while (rs.next()) {
+                        String vA = rs.getString("valor_anterior");
+                        String vN = rs.getString("valor_nuevo");
+                        filas.add(new Object[]{
+                            rs.getInt("id_cambio"),
+                            rs.getString("tabla_afectada"),
+                            rs.getInt("id_registro"),
+                            rs.getString("tipo_operacion"),
+                            vA != null && vA.length() > 80 ? vA.substring(0, 80) + "..." : (vA != null ? vA : ""),
+                            vN != null && vN.length() > 80 ? vN.substring(0, 80) + "..." : (vN != null ? vN : ""),
+                            rs.getString("usuario"),
+                            rs.getTimestamp("fecha_cambio") != null ? rs.getTimestamp("fecha_cambio").toString() : ""
+                        });
+                    }
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        tm.setRowCount(0);
+                        for (Object[] r : filas) tm.addRow(r);
+                        countLabel.setText("\u00daltimos " + filas.size() + " cambios registrados");
+                    });
+                }
+                conn.close();
+            } catch (Exception ex) {
+                javax.swing.SwingUtilities.invokeLater(() -> countLabel.setText("Error al cargar historial"));
+            }
+        }).start();
+
+        return body;
+    }
+
+    // ── Backup ─────────────────────────────────────────────────
+    private JPanel createBackupView() {
+        JPanel body = new JPanel(new BorderLayout());
+        body.setBackground(BG_DARK);
+        body.setBorder(new EmptyBorder(0, 24, 24, 24));
+
+        JLabel title = new JLabel("Respaldos y Seguridad");
+        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        title.setForeground(Color.WHITE);
+        title.setBorder(new EmptyBorder(16, 0, 16, 0));
+
+        JPanel center = new JPanel();
+        center.setBackground(BG_DARK);
+        center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
+
+        JLabel sub = new JLabel("Estado actual de las tablas en la base de datos:");
+        sub.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        sub.setForeground(TXT_SECONDARY);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        center.add(sub);
+        center.add(Box.createRigidArea(new Dimension(0, 16)));
+
+        String[] cols = {"TABLA", "REGISTROS"};
+        DefaultTableModel tm = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
+        };
+        JTable table = new JTable(tm);
+        estilizarTabla(table);
+        JScrollPane sp = new JScrollPane(table);
+        sp.setBackground(BG_DARK);
+        sp.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
+                new EmptyBorder(0, 0, 0, 0)));
+        sp.getViewport().setBackground(BG_DARK);
+        center.add(sp);
+        center.add(Box.createRigidArea(new Dimension(0, 16)));
+
+        JButton btnExportar = crearBotonAccion("EXPORTAR TODO A CSV", BLUE);
+        btnExportar.setAlignmentX(Component.LEFT_ALIGNMENT);
+        center.add(btnExportar);
+
+        body.add(title, BorderLayout.NORTH);
+        body.add(center, BorderLayout.CENTER);
+
+        new Thread(() -> {
+            try {
+                java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                String[] tablas = {"usuario", "aprendiz", "instructor", "empresa", "curso",
+                                   "rol", "usuario_rol", "curso_instructor", "curso_aprendiz",
+                                   "notificacion", "historial_cambios", "progreso_aprendiz"};
+                java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                for (String t : tablas) {
+                    try (java.sql.Statement st = conn.createStatement();
+                         java.sql.ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + t)) {
+                        rs.next();
+                        filas.add(new Object[]{t, rs.getInt(1)});
+                    } catch (Exception ignored) {
+                        filas.add(new Object[]{t, "Error"});
+                    }
+                }
+                javax.swing.SwingUtilities.invokeLater(() -> {
+                    for (Object[] f : filas) tm.addRow(f);
+                });
+                conn.close();
+            } catch (Exception ex) {
+                System.err.println("[BACKUP] Error: " + ex.getMessage());
+            }
+        }).start();
+
+        btnExportar.addActionListener(e -> {
+            String dir = "backup_csv_" + new java.text.SimpleDateFormat("yyyyMMdd_HHmmss").format(new java.util.Date());
+            new java.io.File(dir).mkdirs();
+            new Thread(() -> {
+                try {
+                    java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                    String[] tablas = {"usuario", "aprendiz", "instructor", "empresa", "curso",
+                                       "rol", "usuario_rol", "curso_instructor", "curso_aprendiz",
+                                       "notificacion", "historial_cambios", "progreso_aprendiz"};
+                    for (String t : tablas) {
+                        try (java.sql.Statement st = conn.createStatement();
+                             java.sql.ResultSet rs = st.executeQuery("SELECT * FROM " + t);
+                             java.io.FileWriter fw = new java.io.FileWriter(dir + "/" + t + ".csv")) {
+                            int colsCount = rs.getMetaData().getColumnCount();
+                            for (int i = 1; i <= colsCount; i++) {
+                                if (i > 1) fw.write(",");
+                                fw.write(rs.getMetaData().getColumnName(i));
+                            }
+                            fw.write("\n");
+                            while (rs.next()) {
+                                for (int i = 1; i <= colsCount; i++) {
+                                    if (i > 1) fw.write(",");
+                                    String val = rs.getString(i);
+                                    if (val != null) {
+                                        val = val.replace("\"", "\"\"");
+                                        fw.write("\"" + val + "\"");
+                                    }
+                                }
+                                fw.write("\n");
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    conn.close();
+                    javax.swing.SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(this, "Exportaci\u00f3n completada en: " + dir));
+                } catch (Exception ex) {
+                    javax.swing.SwingUtilities.invokeLater(() ->
+                        JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage()));
+                }
+            }).start();
+        });
+
+        return body;
     }
 
     // ── Inner classes ──────────────────────────────────────────
@@ -642,7 +1501,7 @@ public class AdminDashboard extends JInternalFrame {
 
     class StatCard extends JPanel {
 
-        StatCard(String title, String value, MenuIconType iconType, Color accent, String linkText) {
+        StatCard(String title, String value, MenuIconType iconType, Color accent, String linkText, JLabel[] store, int index) {
             setBackground(BG_CARD);
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setBorder(new EmptyBorder(16, 18, 14, 18));
@@ -676,6 +1535,9 @@ public class AdminDashboard extends JInternalFrame {
             valueLabel.setFont(new Font("Segoe UI", Font.BOLD, 28));
             valueLabel.setForeground(Color.WHITE);
             valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            if (store != null && index >= 0 && index < store.length) {
+                store[index] = valueLabel;
+            }
 
             JLabel linkLabel = new JLabel(linkText);
             linkLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));

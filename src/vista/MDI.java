@@ -158,6 +158,7 @@ public class MDI extends javax.swing.JFrame {
         }
 
         java.awt.EventQueue.invokeLater(() -> {
+            controlador.DatabaseSetup.inicializar();
             new vista.Login().setVisible(true);
         });
     }
