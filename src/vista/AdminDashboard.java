@@ -182,25 +182,39 @@ public class AdminDashboard extends JInternalFrame {
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
 
-        JPanel brand = new JPanel();
+        JPanel brand = new JPanel(new BorderLayout());
         brand.setBackground(BG_SIDEBAR);
-        brand.setLayout(new BoxLayout(brand, BoxLayout.Y_AXIS));
-        brand.setBorder(new EmptyBorder(24, 20, 20, 20));
+        brand.setBorder(new EmptyBorder(24, 0, 20, 0));
         brand.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel brandTitle = new JLabel("AdminConsole");
+        JPanel brandCenter = new JPanel();
+        brandCenter.setBackground(BG_SIDEBAR);
+        brandCenter.setLayout(new BoxLayout(brandCenter, BoxLayout.Y_AXIS));
+
+        JTextField brandTitle = new JTextField("AdminConsole");
         brandTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         brandTitle.setForeground(Color.WHITE);
+        brandTitle.setBackground(BG_SIDEBAR);
+        brandTitle.setBorder(null);
         brandTitle.setHorizontalAlignment(SwingConstants.CENTER);
+        brandTitle.setEditable(true);
+        brandTitle.setCaretColor(GREEN);
+        brandTitle.setSelectedTextColor(Color.BLACK);
+        brandTitle.setSelectionColor(GREEN);
 
-        JLabel brandSub = new JLabel("GLOBAL PRACTICE MGMT");
+        JTextField brandSub = new JTextField("GLOBAL PRACTICE MGMT");
         brandSub.setFont(new Font("Segoe UI", Font.BOLD, 10));
         brandSub.setForeground(TXT_DIM);
+        brandSub.setBackground(BG_SIDEBAR);
+        brandSub.setBorder(null);
         brandSub.setHorizontalAlignment(SwingConstants.CENTER);
+        brandSub.setEditable(false);
 
-        brand.add(brandTitle);
-        brand.add(Box.createVerticalStrut(4));
-        brand.add(brandSub);
+        brandCenter.add(brandTitle);
+        brandCenter.add(Box.createVerticalStrut(4));
+        brandCenter.add(brandSub);
+
+        brand.add(brandCenter, BorderLayout.CENTER);
 
         sidebar.add(brand);
         sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
