@@ -15,6 +15,9 @@ public class MDI extends javax.swing.JFrame {
      */
     public MDI() {
         initComponents();
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            setExtendedState(javax.swing.JFrame.MAXIMIZED_BOTH);
+        });
         escritorio.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override
             public void componentResized(java.awt.event.ComponentEvent e) {

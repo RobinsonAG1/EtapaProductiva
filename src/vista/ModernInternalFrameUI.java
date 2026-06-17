@@ -19,83 +19,103 @@ public class ModernInternalFrameUI extends BasicInternalFrameUI {
 
     @Override
     protected JComponent createNorthPane(JInternalFrame frame) {
-        JComponent titleBar = new JComponent() {};
-        titleBar.setLayout(new BorderLayout());
-        titleBar.setPreferredSize(new Dimension(0, 32));
+        // Contenedor principal de la barra de título
+        JPanel titleBar = new JPanel(new BorderLayout(0, 0));
         titleBar.setBackground(BG);
         titleBar.setOpaque(true);
+        titleBar.setPreferredSize(new Dimension(0, 32));
 
-        JLabel title = new JLabel(frame.getTitle()) {
-            @Override
-            protected void paintComponent(Graphics g) {
-                g.setColor(BG);
-                g.fillRect(0, 0, getWidth(), getHeight());
-                super.paintComponent(g);
-            }
-        };
-        title.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        title.setForeground(FG);
-        title.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
-        titleBar.add(title, BorderLayout.WEST);
+        // Panel del título (IZQUIERDA)
+        JLabel titleLabel = new JLabel(frame.getTitle());
+        titleLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        titleLabel.setForeground(FG);
+        titleLabel.setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 0));
+        titleLabel.setOpaque(true);
+        titleLabel.setBackground(BG);
+        titleBar.add(titleLabel, BorderLayout.WEST);
 
-        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        buttons.setBackground(BG);
-        buttons.setOpaque(false);
+        // Panel de botones (CENTRO llenando desde la derecha)
+        // Usamos un panel con GridLayout para que los botones ocupen todo el espacio disponible
+        // pero solo en su zona derecha
+        JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        buttonsPanel.setBackground(BG);
+        buttonsPanel.setOpaque(true);
 
-        buttons.add(createButton("\u2713", e -> {
-            try {
-                frame.setIcon(true);
-            } catch (java.beans.PropertyVetoException ex) {
-                // ignore
-            }
-        }));
-        buttons.add(createButton("\u25a1", e -> {
-            if (frame.isMaximum()) {
-                try {
-                    frame.setMaximum(false);
-                } catch (java.beans.PropertyVetoException ex) {
-                    // ignore
-                }
-            } else {
-                try {
-                    frame.setMaximum(true);
-                } catch (java.beans.PropertyVetoException ex) {
-                    // ignore
-                }
-            }
-        }));
-        buttons.add(createCloseButton(e -> {
-            try {
-                frame.setClosed(true);
-            } catch (java.beans.PropertyVetoException ex) {
-                // ignore
-            }
-        }));
+        // Botón minimizar
+        buttonsPanel.add(createMinimizeButton(frame));
+        // Botón maximizar/restaurar
+        buttonsPanel.add(createMaximizeButton(frame));
+        // Botón cerrar
+        buttonsPanel.add(createCloseButton(frame));
 
-        titleBar.add(buttons, BorderLayout.EAST);
+        // Envolver en otro panel para asegurar que el fondo se pinta correctamente
+        JPanel rightWrapper = new JPanel(new BorderLayout(0, 0));
+        rightWrapper.setBackground(BG);
+        rightWrapper.setOpaque(true);
+        rightWrapper.add(buttonsPanel, BorderLayout.EAST);
+
+        // Este panel central llenará cualquier espacio vacío entre el título y los botones
+        JPanel centerFiller = new JPanel(new BorderLayout(0, 0));
+        centerFiller.setBackground(BG);
+        centerFiller.setOpaque(true);
+        centerFiller.add(rightWrapper, BorderLayout.EAST);
+
+        titleBar.add(centerFiller, BorderLayout.CENTER);
+
         return titleBar;
     }
 
-    private JButton createButton(String text, java.awt.event.ActionListener action) {
+    private JButton createMinimizeButton(JInternalFrame frame) {
+        return createControlButton("\u2713", BG, HOVER, HOVER.darker(), e -> {
+            try {
+                frame.setIcon(true);
+            } catch (java.beans.PropertyVetoException ignored) {}
+        });
+    }
+
+    private JButton createMaximizeButton(JInternalFrame frame) {
+        return createControlButton("\u25a1", BG, HOVER, HOVER.darker(), e -> {
+            try {
+                if (frame.isMaximum()) {
+                    frame.setMaximum(false);
+                } else {
+                    frame.setMaximum(true);
+                }
+            } catch (java.beans.PropertyVetoException ignored) {}
+        });
+    }
+
+    private JButton createCloseButton(JInternalFrame frame) {
+        return createCloseTypeButton("\u00d7", e -> {
+            try {
+                frame.setClosed(true);
+            } catch (java.beans.PropertyVetoException ignored) {}
+        });
+    }
+
+    private JButton createControlButton(String text, Color normal, Color hover, Color pressed, ActionListener action) {
         JButton btn = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
                 if (getModel().isPressed()) {
-                    g2.setColor(HOVER.darker());
+                    g2.setColor(pressed);
                 } else if (getModel().isRollover()) {
-                    g2.setColor(HOVER);
+                    g2.setColor(hover);
                 } else {
-                    g2.setColor(BG);
+                    g2.setColor(normal);
                 }
                 g2.fillRect(0, 0, getWidth(), getHeight());
+
                 g2.setColor(FG);
                 g2.setFont(new Font("Dialog", Font.PLAIN, 14));
                 FontMetrics fm = g2.getFontMetrics();
                 int x = (getWidth() - fm.stringWidth(text)) / 2;
-                int y = (getHeight() + fm.getAscent()) / 2 - 2;
+                int y = ((getHeight() + fm.getAscent()) / 2) - 2;
                 g2.drawString(text, x, y);
+
                 g2.dispose();
             }
         };
@@ -108,12 +128,13 @@ public class ModernInternalFrameUI extends BasicInternalFrameUI {
         return btn;
     }
 
-    private JButton createCloseButton(java.awt.event.ActionListener action) {
-        JButton btn = new JButton("\u00d7") {
+    private JButton createCloseTypeButton(String text, ActionListener action) {
+        JButton btn = new JButton(text) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
                 if (getModel().isPressed()) {
                     g2.setColor(CLOSE_PRESSED);
                 } else if (getModel().isRollover()) {
@@ -122,12 +143,14 @@ public class ModernInternalFrameUI extends BasicInternalFrameUI {
                     g2.setColor(BG);
                 }
                 g2.fillRect(0, 0, getWidth(), getHeight());
+
                 g2.setColor(FG);
                 g2.setFont(new Font("Dialog", Font.PLAIN, 18));
                 FontMetrics fm = g2.getFontMetrics();
-                int x = (getWidth() - fm.stringWidth("\u00d7")) / 2;
-                int y = (getHeight() + fm.getAscent()) / 2 - 2;
-                g2.drawString("\u00d7", x, y);
+                int x = (getWidth() - fm.stringWidth(text)) / 2;
+                int y = ((getHeight() + fm.getAscent()) / 2) - 2;
+                g2.drawString(text, x, y);
+
                 g2.dispose();
             }
         };
