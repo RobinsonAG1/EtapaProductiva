@@ -120,7 +120,7 @@ public class Login extends JFrame {
         card.add(lblCorreo, c);
 
         int inputR = s(10);
-        txtCorreo = createRoundedField("usuario@soy.sena.edu.co", inputR);
+        txtCorreo = createRoundedField(inputR);
         c.gridy = 3;
         c.insets = new Insets(0, 0, s(16), 0);
         card.add(txtCorreo, c);
@@ -245,7 +245,7 @@ public class Login extends JFrame {
         setContentPane(root);
     }
 
-    private JTextField createRoundedField(String placeholder, int radius) {
+    private JTextField createRoundedField(int radius) {
         JTextField field = new JTextField();
         field.setOpaque(true);
         field.setBackground(new Color(0x2c, 0x2c, 0x2c));
