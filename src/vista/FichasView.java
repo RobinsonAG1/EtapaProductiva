@@ -31,7 +31,7 @@ public class FichasView extends JPanel {
         lblTitle.setFont(FONT_BOLD_18);
         lblTitle.setForeground(Color.WHITE);
 
-        GradientButton btnNuevo = new GradientButton("+ Nueva Ficha");
+        JButton btnNuevo = Theme.crearBoton("+ Nueva Ficha", GREEN);
         btnNuevo.setPreferredSize(new Dimension(130, 32));
         btnNuevo.addActionListener(e -> mostrarDialogoNuevaFicha());
 
@@ -79,7 +79,7 @@ public class FichasView extends JPanel {
             }
         });
 
-        GradientButton btnBuscar = new GradientButton("Buscar", new SearchIcon());
+        JButton btnBuscar = Theme.crearBoton("Buscar", new SearchIcon(), Theme.BG_INNER_BTN);
         btnBuscar.setPreferredSize(new Dimension(100, 36));
         btnBuscar.addActionListener(e -> {
             String q = txtBuscar.getText().trim();
@@ -575,42 +575,7 @@ public class FichasView extends JPanel {
         @Override public int getIconHeight() { return 16; }
     }
 
-    class GradientButton extends JButton {
-        private Color startColor = new Color(0x10, 0xb9, 0x81);
-        private Color endColor = new Color(0x05, 0x96, 0x69);
-        private int radius = 16;
-        GradientButton(String text) {
-            super(text);
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setFocusPainted(false);
-            setForeground(Color.WHITE);
-            setFont(FONT_BOLD_12);
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-        }
-        GradientButton(String text, Icon icon) {
-            super(text, icon);
-            setContentAreaFilled(false);
-            setBorderPainted(false);
-            setFocusPainted(false);
-            setForeground(Color.WHITE);
-            setFont(FONT_BOLD_12);
-            setCursor(new Cursor(Cursor.HAND_CURSOR));
-        }
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            int w = getWidth();
-            int h = getHeight();
-            Color cS = getModel().isPressed() ? startColor.darker() : getModel().isRollover() ? startColor.brighter() : startColor;
-            Color cE = getModel().isPressed() ? endColor.darker() : getModel().isRollover() ? endColor.brighter() : endColor;
-            g2.setPaint(new LinearGradientPaint(0, 0, w, 0, new float[]{0f, 1f}, new Color[]{cS, cE}));
-            g2.fillRoundRect(0, 0, w, h, radius, radius);
-            super.paintComponent(g2);
-            g2.dispose();
-        }
-    }
+
 
     class ActionIconButton extends JButton {
         private Color color;
@@ -668,8 +633,11 @@ public class FichasView extends JPanel {
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             String text = value != null ? value.toString() : "";
             JPanel cellPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-            cellPanel.setOpaque(true);
-            cellPanel.setBackground(isSelected ? BG_CARD : BG_DARK);
+            cellPanel.setOpaque(false);
+            if (isSelected) {
+                cellPanel.setOpaque(true);
+                cellPanel.setBackground(table.getSelectionBackground());
+            }
             switch (column) {
                 case 0:
                     JLabel nameLabel = new JLabel(text);

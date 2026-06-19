@@ -4,6 +4,9 @@
  */
 package vista;
 
+import java.awt.*;
+import javax.swing.JInternalFrame;
+
 /**
  *
  * @author robin
@@ -52,7 +55,40 @@ public class MDI extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        escritorio = new javax.swing.JDesktopPane();
+        escritorio = new javax.swing.JDesktopPane() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Deep workspace vertical gradient
+                GradientPaint gp = new GradientPaint(0, 0, new Color(0x0e, 0x0a, 0x18), 0, getHeight(), new Color(0x04, 0x04, 0x08));
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                
+                // Glowing abstract translucent orbs for depth underneath glass frames
+                int size = Math.min(getWidth(), getHeight());
+                if (size <= 0) size = 600;
+                
+                g2.setPaint(new java.awt.RadialGradientPaint(
+                    new java.awt.geom.Point2D.Double(getWidth() * 0.75, getHeight() * 0.25),
+                    (float) (size * 0.7),
+                    new float[]{0.0f, 1.0f},
+                    new Color[]{new Color(0x22, 0xc5, 0x5e, 14), new Color(0, 0, 0, 0)}
+                ));
+                g2.fillOval((int)(getWidth() * 0.55), (int)(-getHeight() * 0.1), (int)(size * 0.8), (int)(size * 0.8));
+                
+                g2.setPaint(new java.awt.RadialGradientPaint(
+                    new java.awt.geom.Point2D.Double(getWidth() * 0.25, getHeight() * 0.75),
+                    (float) (size * 0.7),
+                    new float[]{0.0f, 1.0f},
+                    new Color[]{new Color(0x3b, 0x82, 0xf6, 10), new Color(0, 0, 0, 0)}
+                ));
+                g2.fillOval((int)(-size * 0.2), (int)(getHeight() * 0.45), (int)(size * 0.8), (int)(size * 0.8));
+                
+                g2.dispose();
+            }
+        };
         menuBar = new javax.swing.JMenuBar();
         fileMenu = new javax.swing.JMenu();
         openMenuItem = new javax.swing.JMenuItem();
@@ -163,11 +199,35 @@ public class MDI extends javax.swing.JFrame {
         });
     }
 
-    public void abrirAdminDashboard() {
-        AdminDashboard dashboard = new AdminDashboard();
+    public void abrirDashboardSegunRol() {
+        JInternalFrame dashboard;
+        if (controlador.Sesion.esAdmin()) {
+            dashboard = new AdminDashboard();
+        } else if (controlador.Sesion.esInstructor()) {
+            dashboard = new InstructorDashboard();
+        } else if (controlador.Sesion.esAprendiz()) {
+            dashboard = new AprendizDashboard();
+        } else {
+            dashboard = new AdminDashboard();
+        }
         escritorio.add(dashboard);
         dashboard.setBounds(0, 0, escritorio.getWidth(), escritorio.getHeight());
         dashboard.setVisible(true);
+        escritorio.moveToFront(dashboard);
+    }
+
+    /**
+     * Cierra sesión y vuelve al login
+     */
+    public void cerrarSesion() {
+        controlador.Sesion.cerrar();
+        for (javax.swing.JInternalFrame frame : escritorio.getAllFrames()) {
+            frame.dispose();
+        }
+        dispose();
+        java.awt.EventQueue.invokeLater(() -> {
+            new vista.Login().setVisible(true);
+        });
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables

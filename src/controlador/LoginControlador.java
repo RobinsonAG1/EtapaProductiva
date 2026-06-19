@@ -48,7 +48,7 @@ public class LoginControlador {
                     java.awt.EventQueue.invokeLater(() -> {
                         MDI mdi = new MDI();
                         mdi.setVisible(true);
-                        mdi.abrirAdminDashboard();
+                        mdi.abrirDashboardSegunRol();
                     });
                 }
             });
@@ -57,7 +57,7 @@ public class LoginControlador {
 
     private static String validarCredenciales(String email, String password) {
         System.out.println("[LOGIN] Buscando usuario: " + email);
-        String sql = "SELECT password_hash, estado FROM usuario WHERE correo = ?";
+        String sql = "SELECT id_usuario, nombres, apellidos, password_hash, estado FROM usuario WHERE correo = ?";
         try (Connection conn = Conexion.getInstance().getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
@@ -68,20 +68,31 @@ public class LoginControlador {
                     return "Credenciales incorrectas. Verifica tu correo y contrase\u00f1a.";
                 }
 
+                int id = rs.getInt("id_usuario");
+                String nom = rs.getString("nombres");
+                String ape = rs.getString("apellidos");
                 boolean activo = rs.getBoolean("estado");
                 String storedHash = rs.getString("password_hash");
-                System.out.println("[LOGIN] Usuario encontrado. Activo: " + activo);
-                System.out.println("[LOGIN] Hash almacenado: " + storedHash.substring(0, Math.min(50, storedHash.length())) + "...");
 
                 if (!activo) {
-                    System.out.println("[LOGIN] Cuenta desactivada");
                     return "Tu cuenta est\u00e1 desactivada. Contacta al administrador.";
                 }
 
                 boolean verified = PasswordUtils.verify(password, storedHash);
-                System.out.println("[LOGIN] Verificaci\u00f3n de contrase\u00f1a: " + (verified ? "EXITOSA" : "FALL\u00d3"));
                 if (!verified) {
                     return "Credenciales incorrectas. Verifica tu correo y contrase\u00f1a.";
+                }
+
+                // Cargar roles del usuario
+                String sqlRoles = "SELECT r.nombre FROM usuario_rol ur JOIN rol r ON ur.id_rol = r.id_rol WHERE ur.id_usuario = ?";
+                try (PreparedStatement ps2 = conn.prepareStatement(sqlRoles)) {
+                    ps2.setInt(1, id);
+                    try (ResultSet rs2 = ps2.executeQuery()) {
+                        java.util.List<String> roles = new java.util.ArrayList<>();
+                        while (rs2.next()) roles.add(rs2.getString("nombre"));
+                        Sesion.iniciar(id, nom, ape, email, roles);
+                        System.out.println("[LOGIN] Roles: " + roles);
+                    }
                 }
             }
 

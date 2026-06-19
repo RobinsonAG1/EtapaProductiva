@@ -41,16 +41,30 @@ public class Login extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0x14, 0x14, 0x14));
+                
+                // Deep dark indigo-slate vertical gradient
+                GradientPaint gp = new GradientPaint(0, 0, new Color(0x0e, 0x0a, 0x1c), 0, getHeight(), new Color(0x04, 0x04, 0x08));
+                g2.setPaint(gp);
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                int shapeY = (int) (getHeight() * 0.42);
-                g2.setColor(new Color(0, 0, 0, 90));
-                Polygon shape = new Polygon();
-                shape.addPoint(0, shapeY + (int) ((getHeight() - shapeY) * 0.12));
-                shape.addPoint(getWidth(), shapeY);
-                shape.addPoint(getWidth(), getHeight());
-                shape.addPoint(0, getHeight());
-                g2.fillPolygon(shape);
+                
+                // Floating accent glowing orb 1 (top right)
+                g2.setPaint(new RadialGradientPaint(
+                    new Point2D.Double(getWidth() * 0.85, getHeight() * 0.15),
+                    (float) (getWidth() * 0.6),
+                    new float[]{0.0f, 1.0f},
+                    new Color[]{new Color(0x22, 0xc5, 0x5e, 18), new Color(0, 0, 0, 0)}
+                ));
+                g2.fillOval((int)(getWidth() * 0.5), (int)(-getHeight() * 0.2), (int)(getWidth() * 0.7), (int)(getHeight() * 0.7));
+                
+                // Floating accent glowing orb 2 (bottom left)
+                g2.setPaint(new RadialGradientPaint(
+                    new Point2D.Double(getWidth() * 0.15, getHeight() * 0.85),
+                    (float) (getWidth() * 0.6),
+                    new float[]{0.0f, 1.0f},
+                    new Color[]{new Color(0x3b, 0x82, 0xf6, 15), new Color(0, 0, 0, 0)}
+                ));
+                g2.fillOval((int)(-getWidth() * 0.2), (int)(getHeight() * 0.5), (int)(getWidth() * 0.7), (int)(getHeight() * 0.7));
+                
                 g2.dispose();
             }
         };
@@ -76,11 +90,8 @@ public class Login extends JFrame {
         JPanel card = new JPanel(new GridBagLayout()) {
             @Override
             protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0x22, 0x22, 0x22));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), s(16), s(16));
-                g2.dispose();
+                // Glassmorphism card paint
+                Theme.paintGlassEffect(g, this, s(16), new Color(20, 20, 28, 160), new Color(255, 255, 255, 22));
             }
             @Override
             public Dimension getPreferredSize() {
@@ -139,20 +150,28 @@ public class Login extends JFrame {
         card.add(txtPassword, c);
 
         // Button
-        int btnR = s(50);
+        int btnR = s(14);
         JButton btnIngresar = new JButton("INGRESAR  \u2192") {
+            private final Color startColor = Theme.GREEN;
+            private final Color endColor = Theme.GREEN.darker();
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                if (getModel().isRollover()) {
-                    g2.setColor(new Color(0xe5, 0xe5, 0xe5));
-                } else {
-                    g2.setColor(Color.WHITE);
-                }
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), btnR, btnR);
-                super.paintComponent(g);
+                int w = getWidth();
+                int h = getHeight();
+                
+                Color cS = getModel().isPressed() ? startColor.darker() : getModel().isRollover() ? startColor.brighter() : startColor;
+                Color cE = getModel().isPressed() ? endColor.darker() : getModel().isRollover() ? startColor : endColor;
+                
+                g2.setPaint(new LinearGradientPaint(0, 0, w, 0, new float[]{0f, 1f}, new Color[]{cS, cE}));
+                g2.fillRoundRect(0, 0, w, h, btnR, btnR);
+                
+                g2.setColor(new Color(255, 255, 255, 45));
+                g2.drawRoundRect(0, 0, w - 1, h - 1, btnR, btnR);
+                
                 g2.dispose();
+                super.paintComponent(g);
             }
         };
         btnIngresar.setOpaque(false);
@@ -246,9 +265,30 @@ public class Login extends JFrame {
     }
 
     private JTextField createRoundedField(int radius) {
-        JTextField field = new JTextField();
-        field.setOpaque(true);
-        field.setBackground(new Color(0x2c, 0x2c, 0x2c));
+        JTextField field = new JTextField() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+                
+                if (isFocusOwner()) {
+                    g2.setColor(Theme.GREEN);
+                    g2.setStroke(new BasicStroke(1.5f));
+                    g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, radius, radius);
+                } else {
+                    g2.setColor(new Color(255, 255, 255, 30));
+                    g2.setStroke(new BasicStroke(1.0f));
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        field.setOpaque(false);
+        field.setBackground(new Color(30, 30, 40, 180));
         field.setForeground(Color.WHITE);
         field.setCaretColor(Color.WHITE);
         field.setSelectedTextColor(Color.BLACK);
@@ -258,13 +298,39 @@ public class Login extends JFrame {
         field.setBorder(new EmptyBorder(padV, padH, padV, padH));
         field.setFont(new Font("Segoe UI", Font.PLAIN, s(13)));
         field.setPreferredSize(new Dimension(s(284), s(40)));
+        
+        field.addFocusListener(new FocusAdapter() {
+            @Override public void focusGained(FocusEvent e) { field.repaint(); }
+            @Override public void focusLost(FocusEvent e) { field.repaint(); }
+        });
         return field;
     }
 
     private JPasswordField createRoundedPasswordField(int radius) {
-        JPasswordField field = new JPasswordField();
-        field.setOpaque(true);
-        field.setBackground(new Color(0x2c, 0x2c, 0x2c));
+        JPasswordField field = new JPasswordField() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                g2.setColor(getBackground());
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+                
+                if (isFocusOwner()) {
+                    g2.setColor(Theme.GREEN);
+                    g2.setStroke(new BasicStroke(1.5f));
+                    g2.drawRoundRect(1, 1, getWidth() - 2, getHeight() - 2, radius, radius);
+                } else {
+                    g2.setColor(new Color(255, 255, 255, 30));
+                    g2.setStroke(new BasicStroke(1.0f));
+                    g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, radius, radius);
+                }
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        field.setOpaque(false);
+        field.setBackground(new Color(30, 30, 40, 180));
         field.setForeground(Color.WHITE);
         field.setCaretColor(Color.WHITE);
         field.setSelectedTextColor(Color.BLACK);
@@ -274,6 +340,11 @@ public class Login extends JFrame {
         field.setBorder(new EmptyBorder(padV, padH, padV, padH));
         field.setFont(new Font("Segoe UI", Font.PLAIN, s(13)));
         field.setPreferredSize(new Dimension(s(284), s(40)));
+        
+        field.addFocusListener(new FocusAdapter() {
+            @Override public void focusGained(FocusEvent e) { field.repaint(); }
+            @Override public void focusLost(FocusEvent e) { field.repaint(); }
+        });
         return field;
     }
 

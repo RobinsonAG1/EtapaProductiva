@@ -6,6 +6,7 @@ import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
+import javax.swing.plaf.basic.BasicScrollBarUI;
 
 public class Theme {
 
@@ -26,6 +27,11 @@ public class Theme {
     public static final Color BANNER_BG = new Color(0x11, 0x16, 0x12);
     public static final Color BANNER_BORDER = new Color(0x16, 0x3a, 0x21);
 
+    // Glassmorphism and Transparency styles
+    public static final Color BG_GLASS = new Color(15, 15, 22, 140);
+    public static final Color BORDER_GLASS = new Color(255, 255, 255, 22);
+    public static final Color BG_SIDEBAR_GLASS = new Color(10, 10, 14, 180);
+
     public static final Font FONT_BOLD_20 = new Font("Segoe UI", Font.BOLD, 20);
     public static final Font FONT_BOLD_18 = new Font("Segoe UI", Font.BOLD, 18);
     public static final Font FONT_BOLD_16 = new Font("Segoe UI", Font.BOLD, 16);
@@ -38,11 +44,96 @@ public class Theme {
     public static final Font FONT_PLAIN_12 = new Font("Segoe UI", Font.PLAIN, 12);
     public static final Font FONT_PLAIN_11 = new Font("Segoe UI", Font.PLAIN, 11);
 
+    /**
+     * Paints a glassmorphic/frosted translucent panel background with a subtle border highlight.
+     */
+    public static void paintGlassEffect(Graphics g, JComponent c, int arc, Color bg, Color border) {
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        
+        // Semi-transparent background
+        g2.setColor(bg);
+        g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), arc, arc);
+        
+        // Translucent highlight border
+        g2.setColor(border);
+        g2.setStroke(new BasicStroke(1.2f));
+        g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, arc, arc);
+        
+        g2.dispose();
+    }
+
+    /**
+     * Replaces standard chunky scrollbars with thin, elegant, translucent pill scrollbars.
+     */
+    public static void estilizarScrollbar(JScrollPane sp) {
+        sp.getVerticalScrollBar().setUI(new BasicScrollBarUI() {
+            @Override
+            protected void paintTrack(Graphics g, JComponent c, Rectangle trackBounds) {
+                // Completely transparent track
+            }
+            @Override
+            protected void paintThumb(Graphics g, JComponent c, Rectangle thumbBounds) {
+                if (thumbBounds.isEmpty() || !scrollbar.isEnabled()) return;
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 35));
+                g2.fillRoundRect(thumbBounds.x + 2, thumbBounds.y + 2, thumbBounds.width - 4, thumbBounds.height - 4, 6, 6);
+                g2.dispose();
+            }
+            @Override
+            protected JButton createDecreaseButton(int orientation) {
+                return createZeroButton();
+            }
+            @Override
+            protected JButton createIncreaseButton(int orientation) {
+                return createZeroButton();
+            }
+            private JButton createZeroButton() {
+                JButton b = new JButton();
+                b.setPreferredSize(new Dimension(0, 0));
+                b.setMinimumSize(new Dimension(0, 0));
+                b.setMaximumSize(new Dimension(0, 0));
+                return b;
+            }
+        });
+        sp.getVerticalScrollBar().setPreferredSize(new Dimension(8, 0));
+        sp.getVerticalScrollBar().setOpaque(false);
+        
+        sp.getHorizontalScrollBar().setUI(new BasicScrollBarUI() {
+            @Override
+            protected void paintTrack(Graphics g, JComponent c, Rectangle trackBounds) {}
+            @Override
+            protected void paintThumb(Graphics g, JComponent c, Rectangle thumbBounds) {
+                if (thumbBounds.isEmpty() || !scrollbar.isEnabled()) return;
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 35));
+                g2.fillRoundRect(thumbBounds.x + 2, thumbBounds.y + 2, thumbBounds.width - 4, thumbBounds.height - 4, 6, 6);
+                g2.dispose();
+            }
+            @Override
+            protected JButton createDecreaseButton(int orientation) { return createZeroButton(); }
+            @Override
+            protected JButton createIncreaseButton(int orientation) { return createZeroButton(); }
+            private JButton createZeroButton() {
+                JButton b = new JButton();
+                b.setPreferredSize(new Dimension(0, 0));
+                b.setMinimumSize(new Dimension(0, 0));
+                b.setMaximumSize(new Dimension(0, 0));
+                return b;
+            }
+        });
+        sp.getHorizontalScrollBar().setPreferredSize(new Dimension(0, 8));
+        sp.getHorizontalScrollBar().setOpaque(false);
+    }
+
     public static void estilizarTabla(JTable table) {
-        table.setBackground(BG_DARK);
+        table.setBackground(new Color(15, 15, 20, 100));
+        table.setOpaque(false);
         table.setForeground(TXT_SECONDARY);
         table.setGridColor(BORDER);
-        table.setSelectionBackground(BG_CARD);
+        table.setSelectionBackground(new Color(0x22, 0xc5, 0x5e, 40));
         table.setSelectionForeground(Color.WHITE);
         table.setRowHeight(36);
         table.setFont(FONT_PLAIN_11);
@@ -72,28 +163,68 @@ public class Theme {
 
     public static JScrollPane scrollPane(JTable table) {
         JScrollPane sp = new JScrollPane(table);
-        sp.setBackground(BG_DARK);
+        sp.setBackground(new Color(0, 0, 0, 0));
+        sp.setOpaque(false);
         sp.setBorder(BorderFactory.createEmptyBorder());
-        sp.getViewport().setBackground(BG_DARK);
+        sp.getViewport().setBackground(new Color(0, 0, 0, 0));
+        sp.getViewport().setOpaque(false);
+        estilizarScrollbar(sp);
         return sp;
     }
 
     public static JButton crearBoton(String text, Color bg) {
-        JButton btn = new JButton(text);
+        return crearBoton(text, null, bg);
+    }
+
+    public static JButton crearBoton(String text, Icon icon, Color bg) {
+        JButton btn = new JButton(text, icon) {
+            private final Color startColor = bg;
+            private final Color endColor = bg.darker();
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                int w = getWidth();
+                int h = getHeight();
+                
+                Color cS = bg;
+                Color cE = bg.darker();
+                if (bg == GREEN || bg == BLUE || bg == ORANGE || bg == PURPLE || bg == RED) {
+                    cS = getModel().isPressed() ? bg.darker() : getModel().isRollover() ? bg.brighter() : bg;
+                    cE = getModel().isPressed() ? bg.darker().darker() : getModel().isRollover() ? bg : bg.darker();
+                } else {
+                    cS = getModel().isPressed() ? new Color(255, 255, 255, 30) : getModel().isRollover() ? new Color(255, 255, 255, 20) : new Color(255, 255, 255, 10);
+                    cE = cS;
+                }
+                
+                g2.setPaint(new LinearGradientPaint(0, 0, w, 0, new float[]{0f, 1f}, new Color[]{cS, cE}));
+                g2.fillRoundRect(0, 0, w, h, 14, 14);
+                
+                g2.setColor(new Color(255, 255, 255, 30));
+                g2.drawRoundRect(0, 0, w - 1, h - 1, 14, 14);
+                
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
         btn.setFont(FONT_BOLD_11);
         btn.setForeground(bg == GREEN || bg == BLUE || bg == ORANGE ? Color.BLACK : Color.WHITE);
-        btn.setBackground(bg);
-        btn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(bg.darker(), 1),
-                BorderFactory.createEmptyBorder(8, 16, 8, 16)));
-        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
         btn.setFocusPainted(false);
+        btn.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         return btn;
     }
 
     public static JPanel createSummaryCard(String title, String value, Color accent) {
-        JPanel card = new JPanel();
-        card.setBackground(BG_CARD);
+        JPanel card = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                paintGlassEffect(g, this, 16, BG_GLASS, BORDER_GLASS);
+            }
+        };
+        card.setOpaque(false);
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBorder(new EmptyBorder(16, 18, 14, 18));
 
@@ -114,10 +245,6 @@ public class Theme {
     }
 
     public static JScrollPane styledScroll(JTable table) {
-        JScrollPane sp = new JScrollPane(table);
-        sp.setBackground(BG_DARK);
-        sp.setBorder(BorderFactory.createEmptyBorder());
-        sp.getViewport().setBackground(BG_DARK);
-        return sp;
+        return scrollPane(table);
     }
 }

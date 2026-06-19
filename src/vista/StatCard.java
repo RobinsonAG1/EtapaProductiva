@@ -9,7 +9,7 @@ import static vista.Theme.*;
 public class StatCard extends JPanel {
 
     public StatCard(String title, String value, AdminDashboard.MenuIconType iconType, Color accent, String linkText, JLabel[] store, int index) {
-        setBackground(BG_CARD);
+        setOpaque(false);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(16, 18, 14, 18));
 
@@ -28,9 +28,9 @@ public class StatCard extends JPanel {
                 g2.dispose();
             }
         };
+        iconCircle.setOpaque(false);
         iconCircle.setPreferredSize(new Dimension(36, 36));
         iconCircle.setMaximumSize(new Dimension(36, 36));
-        iconCircle.setBackground(BG_CARD);
         iconCircle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel titleLabel = new JLabel(title);
@@ -66,6 +66,11 @@ public class StatCard extends JPanel {
         add(valueLabel);
         add(Box.createVerticalGlue());
         add(linkLabel);
+    }
+
+    @Override
+    protected void paintComponent(Graphics g) {
+        Theme.paintGlassEffect(g, this, 16, Theme.BG_GLASS, Theme.BORDER_GLASS);
     }
 
     private void paintMiniIcon(Graphics2D g2, AdminDashboard.MenuIconType type, int s, Color c) {

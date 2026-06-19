@@ -8,19 +8,19 @@ import javax.swing.table.*;
 
 public class AdminDashboard extends JInternalFrame {
 
-    private static final Color BG_DARK = new Color(0x0a, 0x0a, 0x0a);
-    private static final Color BG_SIDEBAR = new Color(0x14, 0x14, 0x14);
-    private static final Color BG_CARD = new Color(0x11, 0x11, 0x11);
-    private static final Color BG_INNER_BTN = new Color(0x1a, 0x1a, 0x1a);
-    private static final Color GREEN = new Color(0x22, 0xc5, 0x5e);
-    private static final Color BLUE = new Color(0x3b, 0x82, 0xf6);
-    private static final Color ORANGE = new Color(0xf5, 0x9e, 0x0b);
-    private static final Color PURPLE = new Color(0xa8, 0x55, 0xf7);
-    private static final Color TXT_SECONDARY = new Color(0x9c, 0xa3, 0xaf);
-    private static final Color TXT_DIM = new Color(0x6b, 0x72, 0x80);
-    private static final Color BORDER = new Color(0x22, 0x22, 0x22);
-    private static final Color BANNER_BG = new Color(0x11, 0x16, 0x12);
-    private static final Color BANNER_BORDER = new Color(0x16, 0x3a, 0x21);
+    private static final Color BG_DARK = Color.BLACK;
+    private static final Color BG_SIDEBAR = Theme.BG_SIDEBAR;
+    private static final Color BG_CARD = Theme.BG_CARD;
+    private static final Color BG_INNER_BTN = Theme.BG_INNER_BTN;
+    private static final Color GREEN = Theme.GREEN;
+    private static final Color BLUE = Theme.BLUE;
+    private static final Color ORANGE = Theme.ORANGE;
+    private static final Color PURPLE = Theme.PURPLE;
+    private static final Color TXT_SECONDARY = Theme.TXT_SECONDARY;
+    private static final Color TXT_DIM = Theme.TXT_DIM;
+    private static final Color BORDER = Theme.BORDER;
+    private static final Color BANNER_BG = Theme.BANNER_BG;
+    private static final Color BANNER_BORDER = Theme.BANNER_BORDER;
 
     private SidebarButton activeMenu;
     private CardLayout contentLayout;
@@ -165,12 +165,18 @@ public class AdminDashboard extends JInternalFrame {
         setMaximizable(true);
         setResizable(true);
         setDefaultCloseOperation(HIDE_ON_CLOSE);
-        setBorder(BorderFactory.createLineBorder(BORDER));
+        setBorder(BorderFactory.createLineBorder(Theme.BORDER_GLASS));
         setUI(new ModernInternalFrameUI(this));
         setSize(1200, 750);
 
-        JPanel root = new JPanel(new BorderLayout());
-        root.setBackground(BG_DARK);
+        JPanel root = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Glass window backdrop
+                Theme.paintGlassEffect(g, this, 0, Theme.BG_GLASS, Theme.BORDER_GLASS);
+            }
+        };
+        root.setOpaque(false);
 
         root.add(createSidebar(), BorderLayout.WEST);
         root.add(createContent(), BorderLayout.CENTER);
@@ -191,35 +197,41 @@ public class AdminDashboard extends JInternalFrame {
     }
 
     private JPanel createSidebar() {
-        JPanel sidebar = new JPanel();
-        sidebar.setBackground(BG_SIDEBAR);
+        JPanel sidebar = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Glass sidebar paint
+                Theme.paintGlassEffect(g, this, 0, Theme.BG_SIDEBAR_GLASS, Theme.BORDER_GLASS);
+            }
+        };
+        sidebar.setOpaque(false);
         sidebar.setPreferredSize(new Dimension(220, 0));
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
 
         JPanel brand = new JPanel(new BorderLayout());
-        brand.setBackground(BG_SIDEBAR);
+        brand.setOpaque(false);
         brand.setBorder(new EmptyBorder(24, 0, 20, 0));
         brand.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel brandCenter = new JPanel();
-        brandCenter.setBackground(BG_SIDEBAR);
+        brandCenter.setOpaque(false);
         brandCenter.setLayout(new BoxLayout(brandCenter, BoxLayout.Y_AXIS));
 
         JTextField brandTitle = new JTextField("AdminConsole");
         brandTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
         brandTitle.setForeground(Color.WHITE);
-        brandTitle.setBackground(BG_SIDEBAR);
+        brandTitle.setBackground(new Color(0, 0, 0, 0));
+        brandTitle.setOpaque(false);
         brandTitle.setBorder(null);
         brandTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        brandTitle.setEditable(true);
-        brandTitle.setCaretColor(GREEN);
-        brandTitle.setSelectedTextColor(Color.BLACK);
-        brandTitle.setSelectionColor(GREEN);
+        brandTitle.setEditable(false);
+        brandTitle.setFocusable(false);
 
         JTextField brandSub = new JTextField("GLOBAL PRACTICE MGMT");
         brandSub.setFont(new Font("Segoe UI", Font.BOLD, 10));
         brandSub.setForeground(TXT_DIM);
-        brandSub.setBackground(BG_SIDEBAR);
+        brandSub.setBackground(new Color(0, 0, 0, 0));
+        brandSub.setOpaque(false);
         brandSub.setBorder(null);
         brandSub.setHorizontalAlignment(SwingConstants.CENTER);
         brandSub.setEditable(false);
@@ -261,7 +273,7 @@ public class AdminDashboard extends JInternalFrame {
         sidebar.add(sep);
 
         JPanel userPanelWrapper = new JPanel(new BorderLayout());
-        userPanelWrapper.setBackground(BG_SIDEBAR);
+        userPanelWrapper.setOpaque(false);
         userPanelWrapper.setBorder(new EmptyBorder(12, 12, 16, 12));
         userPanelWrapper.setMaximumSize(new Dimension(220, 80));
         userPanelWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -269,14 +281,8 @@ public class AdminDashboard extends JInternalFrame {
         JPanel userPanel = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g.create();
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0x22, 0x22, 0x22));
-                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 20, 20);
-                g2.setColor(new Color(0x33, 0x33, 0x33));
-                g2.setStroke(new BasicStroke(1f));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
-                g2.dispose();
+                // Glass user profile
+                Theme.paintGlassEffect(g, this, 20, new Color(255, 255, 255, 12), Theme.BORDER_GLASS);
             }
         };
         userPanel.setOpaque(false);
@@ -309,11 +315,11 @@ public class AdminDashboard extends JInternalFrame {
         userInfo.setOpaque(false);
         userInfo.setLayout(new BoxLayout(userInfo, BoxLayout.Y_AXIS));
 
-        JLabel userName = new JLabel("Administrador");
+        JLabel userName = new JLabel(controlador.Sesion.getNombreCompleto());
         userName.setFont(new Font("Segoe UI", Font.BOLD, 13));
         userName.setForeground(Color.WHITE);
 
-        JLabel userRole = new JLabel("System Practices");
+        JLabel userRole = new JLabel(controlador.Sesion.esAdmin() ? "Superusuario" : "Administrador");
         userRole.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         userRole.setForeground(TXT_SECONDARY);
 
@@ -333,23 +339,45 @@ public class AdminDashboard extends JInternalFrame {
         userPanelWrapper.add(userPanel, BorderLayout.CENTER);
         sidebar.add(userPanelWrapper);
 
+        // Logout button
+        JButton logoutBtn = new JButton("CERRAR SESI\u00d3N");
+        logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        logoutBtn.setForeground(Color.WHITE);
+        logoutBtn.setBackground(new Color(0x33, 0x33, 0x33));
+        logoutBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0x44, 0x44, 0x44), 1),
+                BorderFactory.createEmptyBorder(10, 16, 10, 16)));
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setFocusPainted(false);
+        logoutBtn.setMaximumSize(new Dimension(220, 36));
+        logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.addActionListener(e -> {
+            JFrame top = (JFrame) SwingUtilities.getWindowAncestor(this);
+            if (top instanceof MDI) ((MDI) top).cerrarSesion();
+        });
+        sidebar.add(logoutBtn);
+        sidebar.add(Box.createRigidArea(new Dimension(0, 8)));
+
         return sidebar;
     }
 
     private JPanel createContent() {
         JPanel contentArea = new JPanel(new BorderLayout());
-        contentArea.setBackground(BG_DARK);
+        contentArea.setOpaque(false);
 
         JPanel headerWrapper = new JPanel(new BorderLayout());
         headerWrapper.setOpaque(false);
         headerWrapper.setBorder(new EmptyBorder(24, 24, 16, 24));
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(BANNER_BG);
-        header.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BANNER_BORDER, 1),
-                BorderFactory.createEmptyBorder(14, 20, 14, 20)
-        ));
+        JPanel header = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                // Beautiful glass header instead of murky green
+                Theme.paintGlassEffect(g, this, 14, new Color(255, 255, 255, 12), Theme.BORDER_GLASS);
+            }
+        };
+        header.setOpaque(false);
+        header.setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 20));
 
         headerTitle = new JLabel("Panel de Administración Global");
         headerTitle.setIcon(new ShieldIcon());
@@ -363,7 +391,7 @@ public class AdminDashboard extends JInternalFrame {
 
         contentLayout = new CardLayout();
         contentStack = new JPanel(contentLayout);
-        contentStack.setBackground(BG_DARK);
+        contentStack.setOpaque(false);
 
         contentStack.add(createDashboardView(), "Panel");
         contentStack.add(createFichasView(), "Fichas/Cursos");
@@ -413,12 +441,12 @@ public class AdminDashboard extends JInternalFrame {
 
     private JPanel createDashboardView() {
         JPanel body = new JPanel();
-        body.setBackground(BG_DARK);
+        body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBorder(new EmptyBorder(0, 24, 24, 24));
 
         JPanel statsRow = new JPanel(new GridLayout(1, 5, 14, 0));
-        statsRow.setBackground(BG_DARK);
+        statsRow.setOpaque(false);
         statsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         statsRow.setMaximumSize(new Dimension(Short.MAX_VALUE, 150));
 
@@ -433,29 +461,25 @@ public class AdminDashboard extends JInternalFrame {
         body.add(statsRow);
         body.add(Box.createRigidArea(new Dimension(0, 24)));
 
-        JPanel activityPanel = new JPanel(new BorderLayout());
-        activityPanel.setBackground(BG_SIDEBAR);
-        activityPanel.setBorder(BorderFactory.createLineBorder(BORDER, 1));
+        JPanel activityPanel = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Theme.paintGlassEffect(g, this, 16, Theme.BG_GLASS, Theme.BORDER_GLASS);
+            }
+        };
+        activityPanel.setOpaque(false);
+        activityPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 0));
         activityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JPanel activityHeader = new JPanel(new BorderLayout());
-        activityHeader.setBackground(BG_SIDEBAR);
+        activityHeader.setOpaque(false);
         activityHeader.setBorder(new EmptyBorder(16, 20, 16, 20));
 
         JLabel activityTitle = new JLabel("\uD83D\uDD52  ACTIVIDAD RECIENTE DEL SISTEMA (AUDITOR\u00cdA)");
         activityTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
         activityTitle.setForeground(Color.WHITE);
 
-        JButton verHistorial = new JButton("Ver historial completo");
-        verHistorial.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        verHistorial.setForeground(TXT_SECONDARY);
-        verHistorial.setBackground(BG_INNER_BTN);
-        verHistorial.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER, 1),
-                BorderFactory.createEmptyBorder(6, 14, 6, 14)
-        ));
-        verHistorial.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        verHistorial.setFocusPainted(false);
+        JButton verHistorial = Theme.crearBoton("Ver historial completo", BG_INNER_BTN);
         verHistorial.addActionListener(e -> {
             JOptionPane.showMessageDialog(this, "Historial completo pr\u00f3ximamente.");
         });
@@ -473,41 +497,15 @@ public class AdminDashboard extends JInternalFrame {
                 return false;
             }
         };
-        table.setBackground(BG_DARK);
-        table.setForeground(TXT_SECONDARY);
-        table.setGridColor(BORDER);
-        table.setSelectionBackground(BG_CARD);
-        table.setSelectionForeground(Color.WHITE);
-        table.setRowHeight(36);
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        table.setShowHorizontalLines(true);
-        table.setShowVerticalLines(false);
+        Theme.estilizarTabla(table);
         table.setDefaultRenderer(Object.class, new AuditoriaTableCellRenderer());
 
-        table.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable t, Object v, boolean s, boolean f, int r, int c) {
-                JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, s, f, r, c);
-                lbl.setBackground(BG_SIDEBAR);
-                lbl.setForeground(TXT_SECONDARY);
-                lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-                lbl.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER),
-                        BorderFactory.createEmptyBorder(10, 8, 10, 8)));
-                lbl.setHorizontalAlignment(LEFT);
-                return lbl;
-            }
-        });
-        table.getTableHeader().setBackground(BG_SIDEBAR);
-        table.getTableHeader().setForeground(TXT_SECONDARY);
-        table.getTableHeader().setReorderingAllowed(false);
-        table.getTableHeader().setResizingAllowed(false);
-
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setBackground(BG_DARK);
+        scroll.setOpaque(false);
+        scroll.getViewport().setOpaque(false);
         scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.getViewport().setBackground(BG_DARK);
         scroll.setPreferredSize(new Dimension(800, 200));
+        Theme.estilizarScrollbar(scroll);
 
         activityPanel.add(scroll, BorderLayout.CENTER);
         body.add(activityPanel);
@@ -2373,11 +2371,11 @@ public class AdminDashboard extends JInternalFrame {
             String text = value != null ? value.toString() : "";
             
             JPanel cellPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-            cellPanel.setOpaque(true);
-            cellPanel.setBackground(BG_DARK);
+            cellPanel.setOpaque(false);
             
             if (isSelected) {
-                cellPanel.setBackground(BG_CARD);
+                cellPanel.setOpaque(true);
+                cellPanel.setBackground(table.getSelectionBackground());
             }
             
             switch (column) {
@@ -2511,10 +2509,10 @@ public class AdminDashboard extends JInternalFrame {
             String text = value != null ? value.toString() : "";
             
             JPanel cellPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-            cellPanel.setOpaque(true);
-            cellPanel.setBackground(BG_DARK);
+            cellPanel.setOpaque(false);
             if (isSelected) {
-                cellPanel.setBackground(BG_CARD);
+                cellPanel.setOpaque(true);
+                cellPanel.setBackground(table.getSelectionBackground());
             }
             
             switch (column) {

@@ -74,16 +74,28 @@ public class SidebarButton extends JPanel {
         int w = getWidth();
         int h = getHeight();
 
-        g2.setColor(BG_SIDEBAR);
-        g2.fillRect(0, 0, w, h);
+        // No solid BG_SIDEBAR background painted here, allowing the sidebar glass background to show through!
 
         if (active || hover) {
+            int rx = 4;
+            int ry = 2;
+            int rw = w - 8;
+            int rh = h - 4;
+            int arc = 6;
+            
             if (active) {
-                g2.setColor(new Color(0x22, 0xc5, 0x5e, 40));
+                g2.setColor(new Color(0x22, 0xc5, 0x5e, 35));
+                g2.fillRoundRect(rx, ry, rw, rh, arc, arc);
+                g2.setColor(new Color(0x22, 0xc5, 0x5e, 90));
+                g2.setStroke(new BasicStroke(1.0f));
+                g2.drawRoundRect(rx, ry, rw, rh, arc, arc);
             } else {
-                g2.setColor(new Color(0xff, 0xff, 0xff, 12));
+                g2.setColor(new Color(255, 255, 255, 12));
+                g2.fillRoundRect(rx, ry, rw, rh, arc, arc);
+                g2.setColor(new Color(255, 255, 255, 25));
+                g2.setStroke(new BasicStroke(1.0f));
+                g2.drawRoundRect(rx, ry, rw, rh, arc, arc);
             }
-            g2.fillRoundRect(4, 2, w - 8, h - 4, 6, 6);
         }
 
         if (active) {
