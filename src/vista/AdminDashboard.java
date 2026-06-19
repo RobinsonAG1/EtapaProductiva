@@ -110,41 +110,48 @@ public class AdminDashboard extends JInternalFrame {
         }).start();
     }
 
-    private void cargarFichas() {
+    private void cargarFichas(String filtroNombre) {
         new Thread(() -> {
             try {
-                String sql = "SELECT c.id_curso, c.ficha, c.nombre, c.fecha_inicio, c.fecha_fin, "
+                java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                String sql = "SELECT c.id_curso, c.ficha, c.nombre, "
                            + "COALESCE(i_count.total, 0) as instructores, "
                            + "COALESCE(a_count.total, 0) as aprendices "
                            + "FROM curso c "
                            + "LEFT JOIN (SELECT id_curso, COUNT(*) as total FROM curso_instructor GROUP BY id_curso) i_count ON c.id_curso = i_count.id_curso "
-                           + "LEFT JOIN (SELECT id_curso, COUNT(*) as total FROM curso_aprendiz GROUP BY id_curso) a_count ON c.id_curso = a_count.id_curso";
-                try (java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
-                     java.sql.PreparedStatement ps = conn.prepareStatement(sql);
-                     java.sql.ResultSet rs = ps.executeQuery()) {
-
-                    java.util.List<Object[]> filas = new java.util.ArrayList<>();
-                    while (rs.next()) {
-                        String ficha = rs.getString("ficha");
-                        if (ficha == null || ficha.trim().isEmpty()) ficha = "FIC-" + rs.getInt("id_curso");
-                        String nombre = rs.getString("nombre");
-                        String instructores = String.valueOf(rs.getInt("instructores"));
-                        String aprendices = String.valueOf(rs.getInt("aprendices"));
-                        String inicio = rs.getDate("fecha_inicio") != null ? rs.getDate("fecha_inicio").toString() : "";
-                        String fin = rs.getDate("fecha_fin") != null ? rs.getDate("fecha_fin").toString() : "";
-                        String estado = "Activo";
-                        filas.add(new Object[]{ficha, nombre, instructores, aprendices, estado, inicio, fin});
-                    }
-
-                    javax.swing.SwingUtilities.invokeLater(() -> {
-                        if (fichasTableModel != null) {
-                            fichasTableModel.setRowCount(0);
-                            for (Object[] row : filas) {
-                                fichasTableModel.addRow(row);
-                            }
-                        }
-                    });
+                           + "LEFT JOIN (SELECT id_curso, COUNT(*) as total FROM curso_aprendiz GROUP BY id_curso) a_count ON c.id_curso = a_count.id_curso ";
+                if (filtroNombre != null && !filtroNombre.trim().isEmpty()) {
+                    sql += "WHERE LOWER(c.nombre) LIKE ? ";
                 }
+                sql += "ORDER BY c.nombre";
+
+                try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                    if (filtroNombre != null && !filtroNombre.trim().isEmpty()) {
+                        ps.setString(1, "%" + filtroNombre.trim().toLowerCase() + "%");
+                    }
+                    try (java.sql.ResultSet rs = ps.executeQuery()) {
+                        java.util.List<Object[]> filas = new java.util.ArrayList<>();
+                        while (rs.next()) {
+                            int idCurso = rs.getInt("id_curso");
+                            String ficha = rs.getString("ficha");
+                            if (ficha == null || ficha.trim().isEmpty()) ficha = "FIC-" + idCurso;
+                            String nombre = rs.getString("nombre");
+                            String instructores = String.valueOf(rs.getInt("instructores"));
+                            String aprendices = String.valueOf(rs.getInt("aprendices"));
+                            filas.add(new Object[]{nombre, instructores, aprendices, ficha, "", idCurso});
+                        }
+
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            if (fichasTableModel != null) {
+                                fichasTableModel.setRowCount(0);
+                                for (Object[] row : filas) {
+                                    fichasTableModel.addRow(row);
+                                }
+                            }
+                        });
+                    }
+                }
+                conn.close();
             } catch (Exception ex) {
                 System.err.println("[DASHBOARD] Error al cargar fichas: " + ex.getMessage());
             }
@@ -173,7 +180,14 @@ public class AdminDashboard extends JInternalFrame {
 
     private void switchContent(String view, String header) {
         contentLayout.show(contentStack, view);
-        headerTitle.setText("\uD83D\uDEE1\uFE0F  " + header);
+        headerTitle.setText(header);
+        if (view.equals("Panel")) {
+            headerTitle.setIcon(new ShieldIcon());
+        } else if (view.equals("Fichas/Cursos")) {
+            headerTitle.setIcon(new BookIcon());
+        } else {
+            headerTitle.setIcon(new ShieldIcon());
+        }
     }
 
     private JPanel createSidebar() {
@@ -337,7 +351,9 @@ public class AdminDashboard extends JInternalFrame {
                 BorderFactory.createEmptyBorder(14, 20, 14, 20)
         ));
 
-        headerTitle = new JLabel("\uD83D\uDEE1\uFE0F  Panel de Administraci\u00f3n Global");
+        headerTitle = new JLabel("Panel de Administración Global");
+        headerTitle.setIcon(new ShieldIcon());
+        headerTitle.setIconTextGap(10);
         headerTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
         headerTitle.setForeground(Color.WHITE);
 
@@ -466,6 +482,7 @@ public class AdminDashboard extends JInternalFrame {
         table.setFont(new Font("Segoe UI", Font.PLAIN, 11));
         table.setShowHorizontalLines(true);
         table.setShowVerticalLines(false);
+        table.setDefaultRenderer(Object.class, new AuditoriaTableCellRenderer());
 
         table.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -504,21 +521,82 @@ public class AdminDashboard extends JInternalFrame {
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
         body.setBorder(new EmptyBorder(0, 24, 24, 24));
 
-        // Summary cards for fichas
-        JPanel statsRow = new JPanel(new GridLayout(1, 4, 14, 0));
-        statsRow.setBackground(BG_DARK);
-        statsRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        statsRow.setMaximumSize(new Dimension(Short.MAX_VALUE, 120));
+        // 1. Cabecera (Título y Botón "+ Nueva Ficha")
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setOpaque(false);
+        headerPanel.setBorder(new EmptyBorder(0, 0, 14, 0));
+        headerPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        statsRow.add(createSummaryCard("TOTAL FICHAS", "1", GREEN));
-        statsRow.add(createSummaryCard("FICHAS ACTIVAS", "1", BLUE));
-        statsRow.add(createSummaryCard("APRENDICES", "12", PURPLE));
-        statsRow.add(createSummaryCard("CURSOS", "3", ORANGE));
+        JLabel lblTitle = new JLabel("Gestión de Fichas / Cursos");
+        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        lblTitle.setForeground(Color.WHITE);
 
-        body.add(statsRow);
-        body.add(Box.createRigidArea(new Dimension(0, 20)));
+        GradientButton btnNuevo = new GradientButton("+ Nueva Ficha");
+        btnNuevo.setPreferredSize(new Dimension(130, 32));
+        btnNuevo.addActionListener(e -> mostrarDialogoNuevaFicha());
 
-        // Fichas table
+        headerPanel.add(lblTitle, BorderLayout.WEST);
+        headerPanel.add(btnNuevo, BorderLayout.EAST);
+        body.add(headerPanel);
+
+        // 2. Barra de Búsqueda
+        JPanel searchBar = new JPanel(new BorderLayout(8, 0));
+        searchBar.setOpaque(false);
+        searchBar.setBorder(new EmptyBorder(0, 0, 16, 0));
+        searchBar.setMaximumSize(new Dimension(Short.MAX_VALUE, 36));
+        searchBar.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JTextField txtBuscar = new JTextField() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x11, 0x11, 0x11));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                g2.setColor(BORDER);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        txtBuscar.setOpaque(false);
+        txtBuscar.setCaretColor(Color.WHITE);
+        txtBuscar.setForeground(Color.WHITE);
+        txtBuscar.setBackground(new Color(0x11, 0x11, 0x11));
+        txtBuscar.setBorder(BorderFactory.createEmptyBorder(6, 12, 6, 12));
+        txtBuscar.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        txtBuscar.setText("Buscar ficha por nombre...");
+        txtBuscar.setForeground(TXT_DIM);
+        txtBuscar.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (txtBuscar.getText().equals("Buscar ficha por nombre...")) {
+                    txtBuscar.setText("");
+                    txtBuscar.setForeground(Color.WHITE);
+                }
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (txtBuscar.getText().trim().isEmpty()) {
+                    txtBuscar.setText("Buscar ficha por nombre...");
+                    txtBuscar.setForeground(TXT_DIM);
+                }
+            }
+        });
+
+        GradientButton btnBuscar = new GradientButton("Buscar", new SearchIcon());
+        btnBuscar.setPreferredSize(new Dimension(100, 36));
+        btnBuscar.addActionListener(e -> {
+            String query = txtBuscar.getText().trim();
+            if (query.equals("Buscar ficha por nombre...")) query = "";
+            cargarFichas(query);
+        });
+
+        searchBar.add(txtBuscar, BorderLayout.CENTER);
+        searchBar.add(btnBuscar, BorderLayout.EAST);
+        body.add(searchBar);
+
+        // 3. Fichas disponibles panel
         JPanel tablePanel = new JPanel(new BorderLayout());
         tablePanel.setBackground(BG_SIDEBAR);
         tablePanel.setBorder(BorderFactory.createLineBorder(BORDER, 1));
@@ -528,41 +606,34 @@ public class AdminDashboard extends JInternalFrame {
         tableHeaderP.setBackground(BG_SIDEBAR);
         tableHeaderP.setBorder(new EmptyBorder(16, 20, 16, 20));
 
-        JLabel tableTitle = new JLabel("\uD83D\uDCDA  LISTADO DE FICHAS Y CURSOS");
+        JLabel tableTitle = new JLabel("FICHAS DISPONIBLES");
+        tableTitle.setIcon(new BookIcon());
+        tableTitle.setIconTextGap(8);
         tableTitle.setFont(new Font("Segoe UI", Font.BOLD, 13));
         tableTitle.setForeground(Color.WHITE);
-
-        JButton btnNuevo = new JButton("+ Nueva Ficha");
-        btnNuevo.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        btnNuevo.setForeground(Color.BLACK);
-        btnNuevo.setBackground(GREEN);
-        btnNuevo.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
-        btnNuevo.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        btnNuevo.setFocusPainted(false);
-        btnNuevo.addActionListener(e -> {
-            JOptionPane.showMessageDialog(this, "Crear nueva ficha - pr\u00f3ximamente.");
-        });
-
         tableHeaderP.add(tableTitle, BorderLayout.WEST);
-        tableHeaderP.add(btnNuevo, BorderLayout.EAST);
         tablePanel.add(tableHeaderP, BorderLayout.NORTH);
 
-        String[] columns = {"C\u00d3DIGO", "NOMBRE DEL CURSO", "INSTRUCTOR", "APRENDICES", "ESTADO", "INICIO", "FIN"};
+        String[] columns = {"NOMBRE", "INSTRUCTORES", "APRENDICES", "CÓDIGO", "ACCIONES", "ID_CURSO"};
         fichasTableModel = new DefaultTableModel(columns, 0);
 
         JTable t = new JTable(fichasTableModel) {
             @Override
-            public boolean isCellEditable(int r, int c) { return false; }
+            public boolean isCellEditable(int r, int c) {
+                return c == 4;
+            }
         };
         t.setBackground(BG_DARK);
         t.setForeground(TXT_SECONDARY);
         t.setGridColor(BORDER);
         t.setSelectionBackground(BG_CARD);
         t.setSelectionForeground(Color.WHITE);
-        t.setRowHeight(36);
-        t.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        t.setRowHeight(38);
+        t.setFont(new Font("Segoe UI", Font.PLAIN, 12));
         t.setShowHorizontalLines(true);
         t.setShowVerticalLines(false);
+
+        t.removeColumn(t.getColumnModel().getColumn(5));
 
         t.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -583,16 +654,54 @@ public class AdminDashboard extends JInternalFrame {
         t.getTableHeader().setReorderingAllowed(false);
         t.getTableHeader().setResizingAllowed(false);
 
+        FichasTableCellRenderer renderer = new FichasTableCellRenderer();
+        t.getColumnModel().getColumn(0).setCellRenderer(renderer);
+        t.getColumnModel().getColumn(1).setCellRenderer(renderer);
+        t.getColumnModel().getColumn(2).setCellRenderer(renderer);
+        t.getColumnModel().getColumn(3).setCellRenderer(renderer);
+        t.getColumnModel().getColumn(4).setCellRenderer(renderer);
+        t.getColumnModel().getColumn(4).setCellEditor(new FichasTableCellEditor());
+
         JScrollPane sp = new JScrollPane(t);
         sp.setBackground(BG_DARK);
         sp.setBorder(BorderFactory.createEmptyBorder());
         sp.getViewport().setBackground(BG_DARK);
-        sp.setPreferredSize(new Dimension(800, 200));
+        sp.setPreferredSize(new Dimension(800, 300));
 
         tablePanel.add(sp, BorderLayout.CENTER);
         body.add(tablePanel);
+        body.add(Box.createRigidArea(new Dimension(0, 20)));
 
-        cargarFichas();
+        // 4. Pie de Página (Footer)
+        JPanel footerWrapper = new JPanel();
+        footerWrapper.setLayout(new BoxLayout(footerWrapper, BoxLayout.Y_AXIS));
+        footerWrapper.setOpaque(false);
+        footerWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel greenLine = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                g.setColor(GREEN);
+                g.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        greenLine.setPreferredSize(new Dimension(0, 2));
+        greenLine.setMaximumSize(new Dimension(Short.MAX_VALUE, 2));
+
+        JPanel footerTextPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 8));
+        footerTextPanel.setOpaque(false);
+        JLabel capLabel = new JLabel(new MortarboardMiniIcon());
+        JLabel senaCopy = new JLabel("SENA Prácticas © 2026");
+        senaCopy.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        senaCopy.setForeground(TXT_DIM);
+        footerTextPanel.add(capLabel);
+        footerTextPanel.add(senaCopy);
+
+        footerWrapper.add(greenLine);
+        footerWrapper.add(footerTextPanel);
+        body.add(footerWrapper);
+
+        cargarFichas(null);
 
         return body;
     }
@@ -1624,6 +1733,911 @@ public class AdminDashboard extends JInternalFrame {
                     g2.drawArc(m, s / 4, s / 2, s / 2, 0, 180);
                     g2.drawArc(s / 2, s / 4, s / 2, s / 2, 0, 180);
                     break;
+            }
+        }
+    }
+
+    private void mostrarDialogoNuevaFicha() {
+            JTextField txtNombre = new JTextField();
+            JTextField txtFicha = new JTextField();
+            JTextField txtInicio = new JTextField();
+            JTextField txtFin = new JTextField();
+            
+            JPanel form = new JPanel(new GridBagLayout());
+            GridBagConstraints gbc = new GridBagConstraints();
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+            gbc.insets = new Insets(4, 8, 4, 8);
+            
+            String[] labels = {"Nombre Curso*:", "Ficha / Código*:", "Fecha Inicio:", "Fecha Fin:"};
+            JTextField[] campos = {txtNombre, txtFicha, txtInicio, txtFin};
+            for (int i = 0; i < labels.length; i++) {
+                gbc.gridx = 0; gbc.gridy = i; gbc.weightx = 0;
+                form.add(new JLabel(labels[i]), gbc);
+                gbc.gridx = 1; gbc.weightx = 1;
+                form.add(campos[i], gbc);
+            }
+            
+            int result = JOptionPane.showConfirmDialog(this, form, "Nueva Ficha / Curso", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+            if (result == JOptionPane.OK_OPTION) {
+                String nombre = txtNombre.getText().trim();
+                String ficha = txtFicha.getText().trim();
+                String inicio = txtInicio.getText().trim();
+                String fin = txtFin.getText().trim();
+                
+                if (nombre.isEmpty() || ficha.isEmpty()) {
+                    JOptionPane.showMessageDialog(this, "Nombre y Ficha son obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                
+                new Thread(() -> {
+                    try {
+                        dao.CursoDAO cDao = new dao.CursoDAO();
+                        modelo.Curso c = new modelo.Curso();
+                        c.setNombre(nombre);
+                        c.setFicha(ficha);
+                        if (!inicio.isEmpty()) c.setFechaInicio(java.sql.Date.valueOf(inicio));
+                        if (!fin.isEmpty()) c.setFechaFin(java.sql.Date.valueOf(fin));
+                        
+                        cDao.insertar(c);
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> 
+                            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                }).start();
+            }
+        }
+
+        private void editarFichaAccion(int idCurso) {
+            new Thread(() -> {
+                try {
+                    dao.CursoDAO cDao = new dao.CursoDAO();
+                    modelo.Curso c = cDao.buscarPorId(idCurso);
+                    if (c == null) return;
+                    
+                    javax.swing.SwingUtilities.invokeLater(() -> {
+                        JTextField txtNombre = new JTextField(c.getNombre());
+                        JTextField txtFicha = new JTextField(c.getFicha());
+                        JTextField txtInicio = new JTextField(c.getFechaInicio() != null ? c.getFechaInicio().toString() : "");
+                        JTextField txtFin = new JTextField(c.getFechaFin() != null ? c.getFechaFin().toString() : "");
+                        
+                        JPanel form = new JPanel(new GridBagLayout());
+                        GridBagConstraints gbc = new GridBagConstraints();
+                        gbc.fill = GridBagConstraints.HORIZONTAL;
+                        gbc.insets = new Insets(4, 8, 4, 8);
+                        
+                        String[] labels = {"Nombre Curso*:", "Ficha / Código*:", "Fecha Inicio:", "Fecha Fin:"};
+                        JTextField[] campos = {txtNombre, txtFicha, txtInicio, txtFin};
+                        for (int i = 0; i < labels.length; i++) {
+                            gbc.gridx = 0; gbc.gridy = i; gbc.weightx = 0;
+                            form.add(new JLabel(labels[i]), gbc);
+                            gbc.gridx = 1; gbc.weightx = 1;
+                            form.add(campos[i], gbc);
+                        }
+                        
+                        int result = JOptionPane.showConfirmDialog(this, form, "Editar Ficha / Curso", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+                        if (result == JOptionPane.OK_OPTION) {
+                            String nombre = txtNombre.getText().trim();
+                            String ficha = txtFicha.getText().trim();
+                            String inicio = txtInicio.getText().trim();
+                            String fin = txtFin.getText().trim();
+                            
+                            if (nombre.isEmpty() || ficha.isEmpty()) {
+                                JOptionPane.showMessageDialog(this, "Nombre y Ficha son obligatorios.", "Error", JOptionPane.ERROR_MESSAGE);
+                                return;
+                            }
+                            
+                            new Thread(() -> {
+                                try {
+                                    c.setNombre(nombre);
+                                    c.setFicha(ficha);
+                                    if (!inicio.isEmpty()) c.setFechaInicio(java.sql.Date.valueOf(inicio));
+                                    else c.setFechaInicio(null);
+                                    if (!fin.isEmpty()) c.setFechaFin(java.sql.Date.valueOf(fin));
+                                    else c.setFechaFin(null);
+                                    
+                                    cDao.actualizar(c);
+                                    javax.swing.SwingUtilities.invokeLater(() -> {
+                                        cargarFichas(null);
+                                        cargarDatosDashboard();
+                                    });
+                                } catch (Exception ex) {
+                                    javax.swing.SwingUtilities.invokeLater(() -> 
+                                        JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                                }
+                            }).start();
+                        }
+                    });
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }).start();
+        }
+
+        private void eliminarFichaAccion(int idCurso, String name) {
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                    "¿Estás seguro de que deseas eliminar la ficha \"" + name + "\"?\nEsta acción borrará todas las asociaciones.", 
+                    "Confirmar Eliminación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm == JOptionPane.YES_OPTION) {
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        try (java.sql.PreparedStatement ps1 = conn.prepareStatement("DELETE FROM curso_instructor WHERE id_curso = ?");
+                             java.sql.PreparedStatement ps2 = conn.prepareStatement("DELETE FROM curso_aprendiz WHERE id_curso = ?")) {
+                            ps1.setInt(1, idCurso);
+                            ps1.executeUpdate();
+                            ps2.setInt(1, idCurso);
+                            ps2.executeUpdate();
+                        }
+                        dao.CursoDAO cDao = new dao.CursoDAO();
+                        cDao.eliminar(idCurso);
+                        conn.close();
+                        
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                            JOptionPane.showMessageDialog(this, "Ficha eliminada correctamente.");
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> 
+                            JOptionPane.showMessageDialog(this, "Error al eliminar: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                    }
+                }).start();
+            }
+        }
+
+        private void asignarFichaAccion(int idCurso, String name) {
+            JDialog dialog = new JDialog(javax.swing.SwingUtilities.getWindowAncestor(this), "Asignaciones - " + name, Dialog.ModalityType.APPLICATION_MODAL);
+            dialog.setSize(550, 450);
+            dialog.setLocationRelativeTo(this);
+            dialog.getContentPane().setBackground(BG_DARK);
+            dialog.setLayout(new BorderLayout());
+            
+            JTabbedPane tabs = new JTabbedPane();
+            tabs.setBackground(BG_SIDEBAR);
+            tabs.setForeground(Color.WHITE);
+            tabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
+            
+            // PANEL INSTRUCTORES
+            JPanel panelInst = new JPanel(new BorderLayout(8, 8));
+            panelInst.setBackground(BG_DARK);
+            panelInst.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+            
+            JPanel topInst = new JPanel(new BorderLayout(8, 8));
+            topInst.setOpaque(false);
+            JComboBox<ComboItem> comboInst = new JComboBox<>();
+            comboInst.setBackground(BG_SIDEBAR);
+            comboInst.setForeground(Color.WHITE);
+            JButton btnAddInst = crearBotonAccion("+ Asignar", GREEN);
+            topInst.add(new JLabel("Instructor disponible:"), BorderLayout.WEST);
+            topInst.add(comboInst, BorderLayout.CENTER);
+            topInst.add(btnAddInst, BorderLayout.EAST);
+            
+            DefaultListModel<ComboItem> listModelInst = new DefaultListModel<>();
+            JList<ComboItem> listInst = new JList<>(listModelInst);
+            listInst.setBackground(BG_SIDEBAR);
+            listInst.setForeground(Color.WHITE);
+            listInst.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            JScrollPane scrollInst = new JScrollPane(listInst);
+            scrollInst.setBorder(BorderFactory.createLineBorder(BORDER));
+            
+            JButton btnDelInst = crearBotonAccion("Remover Seleccionado", new Color(0xef, 0x44, 0x44));
+            
+            panelInst.add(topInst, BorderLayout.NORTH);
+            panelInst.add(scrollInst, BorderLayout.CENTER);
+            panelInst.add(btnDelInst, BorderLayout.SOUTH);
+            
+            // PANEL APRENDICES
+            JPanel panelApr = new JPanel(new BorderLayout(8, 8));
+            panelApr.setBackground(BG_DARK);
+            panelApr.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+            
+            JPanel topApr = new JPanel(new BorderLayout(8, 8));
+            topApr.setOpaque(false);
+            JComboBox<ComboItem> comboApr = new JComboBox<>();
+            comboApr.setBackground(BG_SIDEBAR);
+            comboApr.setForeground(Color.WHITE);
+            JButton btnAddApr = crearBotonAccion("+ Asignar", GREEN);
+            topApr.add(new JLabel("Aprendiz disponible:"), BorderLayout.WEST);
+            topApr.add(comboApr, BorderLayout.CENTER);
+            topApr.add(btnAddApr, BorderLayout.EAST);
+            
+            DefaultListModel<ComboItem> listModelApr = new DefaultListModel<>();
+            JList<ComboItem> listApr = new JList<>(listModelApr);
+            listApr.setBackground(BG_SIDEBAR);
+            listApr.setForeground(Color.WHITE);
+            listApr.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+            JScrollPane scrollApr = new JScrollPane(listApr);
+            scrollApr.setBorder(BorderFactory.createLineBorder(BORDER));
+            
+            JButton btnDelApr = crearBotonAccion("Remover Seleccionado", new Color(0xef, 0x44, 0x44));
+            
+            panelApr.add(topApr, BorderLayout.NORTH);
+            panelApr.add(scrollApr, BorderLayout.CENTER);
+            panelApr.add(btnDelApr, BorderLayout.SOUTH);
+            
+            tabs.addTab("Instructores", panelInst);
+            tabs.addTab("Aprendices", panelApr);
+            dialog.add(tabs, BorderLayout.CENTER);
+            
+            Runnable cargarInstructores = () -> {
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sqlAssigned = "SELECT i.id_instructor, u.nombres || ' ' || u.apellidos as nombre FROM instructor i JOIN usuario u ON i.id_usuario = u.id_usuario JOIN curso_instructor ci ON i.id_instructor = ci.id_instructor WHERE ci.id_curso = ?";
+                        java.util.List<ComboItem> assignedList = new java.util.ArrayList<>();
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlAssigned)) {
+                            ps.setInt(1, idCurso);
+                            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    assignedList.add(new ComboItem(rs.getInt("id_instructor"), rs.getString("nombre")));
+                                }
+                            }
+                        }
+                        String sqlUnassigned = "SELECT i.id_instructor, u.nombres || ' ' || u.apellidos as nombre FROM instructor i JOIN usuario u ON i.id_usuario = u.id_usuario WHERE i.activo = true AND i.id_instructor NOT IN (SELECT id_instructor FROM curso_instructor WHERE id_curso = ?)";
+                        java.util.List<ComboItem> unassignedList = new java.util.ArrayList<>();
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlUnassigned)) {
+                            ps.setInt(1, idCurso);
+                            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    unassignedList.add(new ComboItem(rs.getInt("id_instructor"), rs.getString("nombre")));
+                                }
+                            }
+                        }
+                        conn.close();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            listModelInst.clear();
+                            for (ComboItem item : assignedList) listModelInst.addElement(item);
+                            comboInst.removeAllItems();
+                            for (ComboItem item : unassignedList) comboInst.addItem(item);
+                        });
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
+            };
+            
+            Runnable cargarAprendices = () -> {
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sqlAssigned = "SELECT a.id_aprendiz, u.nombres || ' ' || u.apellidos as nombre FROM aprendiz a JOIN usuario u ON a.id_usuario = u.id_usuario JOIN curso_aprendiz ca ON a.id_aprendiz = ca.id_aprendiz WHERE ca.id_curso = ?";
+                        java.util.List<ComboItem> assignedList = new java.util.ArrayList<>();
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlAssigned)) {
+                            ps.setInt(1, idCurso);
+                            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    assignedList.add(new ComboItem(rs.getInt("id_aprendiz"), rs.getString("nombre")));
+                                }
+                            }
+                        }
+                        String sqlUnassigned = "SELECT a.id_aprendiz, u.nombres || ' ' || u.apellidos as nombre FROM aprendiz a JOIN usuario u ON a.id_usuario = u.id_usuario WHERE a.id_aprendiz NOT IN (SELECT id_aprendiz FROM curso_aprendiz WHERE id_curso = ?)";
+                        java.util.List<ComboItem> unassignedList = new java.util.ArrayList<>();
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlUnassigned)) {
+                            ps.setInt(1, idCurso);
+                            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                                while (rs.next()) {
+                                    unassignedList.add(new ComboItem(rs.getInt("id_aprendiz"), rs.getString("nombre")));
+                                }
+                            }
+                        }
+                        conn.close();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            listModelApr.clear();
+                            for (ComboItem item : assignedList) listModelApr.addElement(item);
+                            comboApr.removeAllItems();
+                            for (ComboItem item : unassignedList) comboApr.addItem(item);
+                        });
+                    } catch (Exception ex) {
+                        ex.printStackTrace();
+                    }
+                }).start();
+            };
+            
+            btnAddInst.addActionListener(ev -> {
+                ComboItem selected = (ComboItem) comboInst.getSelectedItem();
+                if (selected == null) return;
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sql = "INSERT INTO curso_instructor (id_curso, id_instructor) VALUES (?, ?)";
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, idCurso);
+                            ps.setInt(2, selected.id);
+                            ps.executeUpdate();
+                        }
+                        conn.close();
+                        cargarInstructores.run();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage()));
+                    }
+                }).start();
+            });
+            
+            btnDelInst.addActionListener(ev -> {
+                ComboItem selected = listInst.getSelectedValue();
+                if (selected == null) {
+                    JOptionPane.showMessageDialog(dialog, "Seleccione un instructor de la lista.");
+                    return;
+                }
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sql = "DELETE FROM curso_instructor WHERE id_curso = ? AND id_instructor = ?";
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, idCurso);
+                            ps.setInt(2, selected.id);
+                            ps.executeUpdate();
+                        }
+                        conn.close();
+                        cargarInstructores.run();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(dialog, "Error: " + ev.toString()));
+                    }
+                }).start();
+            });
+            
+            btnAddApr.addActionListener(ev -> {
+                ComboItem selected = (ComboItem) comboApr.getSelectedItem();
+                if (selected == null) return;
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sql = "INSERT INTO curso_aprendiz (id_curso, id_aprendiz, estado) VALUES (?, ?, ?)";
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, idCurso);
+                            ps.setInt(2, selected.id);
+                            ps.setString(3, "Activo");
+                            ps.executeUpdate();
+                        }
+                        conn.close();
+                        cargarAprendices.run();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage()));
+                    }
+                }).start();
+            });
+            
+            btnDelApr.addActionListener(ev -> {
+                ComboItem selected = listApr.getSelectedValue();
+                if (selected == null) {
+                    JOptionPane.showMessageDialog(dialog, "Seleccione un aprendiz de la lista.");
+                    return;
+                }
+                new Thread(() -> {
+                    try {
+                        java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
+                        String sql = "DELETE FROM curso_aprendiz WHERE id_curso = ? AND id_aprendiz = ?";
+                        try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+                            ps.setInt(1, idCurso);
+                            ps.setInt(2, selected.id);
+                            ps.executeUpdate();
+                        }
+                        conn.close();
+                        cargarAprendices.run();
+                        javax.swing.SwingUtilities.invokeLater(() -> {
+                            cargarFichas(null);
+                            cargarDatosDashboard();
+                        });
+                    } catch (Exception ex) {
+                        javax.swing.SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(dialog, "Error: " + ex.getMessage()));
+                    }
+                }).start();
+            });
+            
+            cargarInstructores.run();
+            cargarAprendices.run();
+            
+            dialog.setVisible(true);
+        }
+        
+        static class ComboItem {
+            int id;
+            String name;
+            ComboItem(int id, String name) {
+                this.id = id;
+                this.name = name;
+            }
+            @Override
+            public String toString() {
+                return name;
+            }
+        }
+
+    // Custom Java 2D and Renderer Classes
+    static class ShieldIcon implements Icon {
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(new Color(0x22, 0xc5, 0x5e));
+            g2.setStroke(new BasicStroke(2.0f));
+            int size = 16;
+            int px = x + 1;
+            int py = y + 1;
+            int[] xs = {px + size / 2, px + 2, px + 2, px + size / 2, px + size - 2, px + size - 2};
+            int[] ys = {py + 2, py + 5, py + size - 5, py + size - 1, py + size - 5, py + 5};
+            g2.drawPolygon(xs, ys, 6);
+            g2.fillOval(px + size / 2 - 2, py + size / 2 - 2, 4, 4);
+            g2.dispose();
+        }
+        @Override public int getIconWidth() { return 18; }
+        @Override public int getIconHeight() { return 18; }
+    }
+
+    static class BookIcon implements Icon {
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(new Color(0x22, 0xc5, 0x5e));
+            g2.setStroke(new BasicStroke(1.8f));
+            g2.drawRect(x + 2, y + 2, 12, 14);
+            g2.drawLine(x + 11, y + 2, x + 11, y + 16);
+            g2.dispose();
+        }
+        @Override public int getIconWidth() { return 16; }
+        @Override public int getIconHeight() { return 18; }
+    }
+
+    static class SearchIcon implements Icon {
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(Color.WHITE);
+            g2.setStroke(new BasicStroke(1.8f));
+            g2.drawOval(x + 2, y + 2, 7, 7);
+            g2.drawLine(x + 8, y + 8, x + 13, y + 13);
+            g2.dispose();
+        }
+        @Override public int getIconWidth() { return 16; }
+        @Override public int getIconHeight() { return 16; }
+    }
+
+    static class MortarboardMiniIcon implements Icon {
+        @Override
+        public void paintIcon(Component c, Graphics g, int x, int y) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(new Color(0x6b, 0x72, 0x80));
+            g2.setStroke(new BasicStroke(1.5f));
+            Polygon p = new Polygon();
+            p.addPoint(x + 8, y + 2);
+            p.addPoint(x + 15, y + 6);
+            p.addPoint(x + 8, y + 10);
+            p.addPoint(x + 1, y + 6);
+            g2.drawPolygon(p);
+            g2.drawArc(x + 4, y + 8, 8, 4, 0, -180);
+            g2.drawLine(x + 8, y + 6, x + 13, y + 10);
+            g2.dispose();
+        }
+        @Override public int getIconWidth() { return 16; }
+        @Override public int getIconHeight() { return 16; }
+    }
+
+    class GradientButton extends JButton {
+        private Color startColor = new Color(0x10, 0xb9, 0x81);
+        private Color endColor = new Color(0x05, 0x96, 0x69);
+        private int radius = 16;
+        
+        public GradientButton(String text) {
+            super(text);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setForeground(Color.WHITE);
+            setFont(new Font("Segoe UI", Font.BOLD, 12));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+
+        public GradientButton(String text, Icon icon) {
+            super(text, icon);
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setForeground(Color.WHITE);
+            setFont(new Font("Segoe UI", Font.BOLD, 12));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth();
+            int h = getHeight();
+            
+            Color cStart = startColor;
+            Color cEnd = endColor;
+            
+            if (getModel().isPressed()) {
+                cStart = startColor.darker();
+                cEnd = endColor.darker();
+            } else if (getModel().isRollover()) {
+                cStart = startColor.brighter();
+                cEnd = endColor.brighter();
+            }
+            
+            LinearGradientPaint lgp = new LinearGradientPaint(
+                0, 0, w, 0,
+                new float[]{0f, 1f},
+                new Color[]{cStart, cEnd}
+            );
+            g2.setPaint(lgp);
+            g2.fillRoundRect(0, 0, w, h, radius, radius);
+            
+            super.paintComponent(g2);
+            g2.dispose();
+        }
+    }
+
+    class ActionIconButton extends JButton {
+        private Color color;
+        private int iconType; // 0=view, 1=edit, 2=assign, 3=delete
+        
+        public ActionIconButton(int iconType, Color color) {
+            this.iconType = iconType;
+            this.color = color;
+            setContentAreaFilled(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setPreferredSize(new Dimension(28, 28));
+            setMinimumSize(new Dimension(28, 28));
+            setMaximumSize(new Dimension(28, 28));
+            setCursor(new Cursor(Cursor.HAND_CURSOR));
+        }
+        
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            int w = getWidth();
+            int h = getHeight();
+            
+            Color c = color;
+            if (getModel().isPressed()) {
+                g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 35));
+                g2.fillRoundRect(0, 0, w - 1, h - 1, 8, 8);
+                g2.setColor(c.darker());
+            } else if (getModel().isRollover()) {
+                g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 20));
+                g2.fillRoundRect(0, 0, w - 1, h - 1, 8, 8);
+                g2.setColor(c.brighter());
+            } else {
+                g2.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), 10));
+                g2.fillRoundRect(0, 0, w - 1, h - 1, 8, 8);
+                g2.setColor(c);
+            }
+            g2.setStroke(new BasicStroke(1.2f));
+            g2.drawRoundRect(0, 0, w - 1, h - 1, 8, 8);
+            
+            g2.setColor(c);
+            g2.setStroke(new BasicStroke(1.5f));
+            int size = 12;
+            int cx = (w - size) / 2;
+            int cy = (h - size) / 2;
+            
+            switch (iconType) {
+                case 0: // View (Eye)
+                    g2.drawArc(cx, cy + 2, size, size - 4, 0, 180);
+                    g2.drawArc(cx, cy + 2, size, size - 4, 0, -180);
+                    g2.fillOval(cx + size/2 - 2, cy + size/2 - 2, 4, 4);
+                    break;
+                case 1: // Edit (Pencil)
+                    g2.drawRect(cx + 2, cy + 2, 4, size - 4);
+                    g2.drawLine(cx + 2, cy + 2, cx + 5, cy + 5);
+                    g2.drawLine(cx, cy + size, cx + 2, cy + size - 2);
+                    g2.drawLine(cx, cy + size, cx + 2, cy + size);
+                    break;
+                case 2: // Assign (Person + Plus)
+                    g2.drawOval(cx + 1, cy, 6, 6);
+                    g2.drawArc(cx - 3, cy + 7, 14, 8, 0, 180);
+                    g2.setStroke(new BasicStroke(1.2f));
+                    g2.drawLine(cx + 9, cy + 4, cx + 13, cy + 4);
+                    g2.drawLine(cx + 11, cy + 2, cx + 11, cy + 6);
+                    break;
+                case 3: // Delete (Trash)
+                    g2.drawRect(cx + 2, cy + 3, size - 4, size - 3);
+                    g2.drawLine(cx, cy + 3, cx + size, cy + 3);
+                    g2.drawLine(cx + 3, cy, cx + size - 3, cy);
+                    g2.drawLine(cx + 4, cy + 5, cx + 4, cy + size - 2);
+                    g2.drawLine(cx + size - 4, cy + 5, cx + size - 4, cy + size - 2);
+                    break;
+            }
+            
+            g2.dispose();
+        }
+    }
+
+    class AuditoriaTableCellRenderer implements TableCellRenderer {
+        private final DefaultTableCellRenderer defaultRenderer = new DefaultTableCellRenderer();
+        
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            String text = value != null ? value.toString() : "";
+            
+            JPanel cellPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
+            cellPanel.setOpaque(true);
+            cellPanel.setBackground(BG_DARK);
+            
+            if (isSelected) {
+                cellPanel.setBackground(BG_CARD);
+            }
+            
+            switch (column) {
+                case 0: // FECHA
+                    JPanel dateCapsule = new JPanel(new BorderLayout()) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(new Color(0x22, 0x22, 0x22));
+                            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                            g2.dispose();
+                        }
+                    };
+                    dateCapsule.setOpaque(false);
+                    dateCapsule.setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+                    JLabel dateLabel = new JLabel(dateCapsule.getWidth() > 0 ? text : text); // just label
+                    dateLabel.setText(text);
+                    dateLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                    dateLabel.setForeground(TXT_SECONDARY);
+                    dateCapsule.add(dateLabel, BorderLayout.CENTER);
+                    cellPanel.add(dateCapsule);
+                    return cellPanel;
+                    
+                case 1: // USUARIO RESPONSABLE
+                    JLabel userLabel = new JLabel(text);
+                    userLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    userLabel.setForeground(GREEN);
+                    cellPanel.add(userLabel);
+                    return cellPanel;
+                    
+                case 2: // MÓDULO
+                    JPanel modCapsule = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0)) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(new Color(0x2c, 0x2c, 0x2c));
+                            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                            g2.dispose();
+                        }
+                    };
+                    modCapsule.setOpaque(false);
+                    modCapsule.setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+                    
+                    JLabel chainIcon = new JLabel() {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(TXT_SECONDARY);
+                            g2.setStroke(new BasicStroke(1.2f));
+                            g2.drawOval(1, 4, 4, 4);
+                            g2.drawOval(4, 4, 4, 4);
+                            g2.dispose();
+                        }
+                        @Override
+                        public Dimension getPreferredSize() {
+                            return new Dimension(10, 12);
+                        }
+                    };
+                    
+                    JLabel modLabel = new JLabel(text.toUpperCase());
+                    modLabel.setFont(new Font("Segoe UI", Font.BOLD, 9));
+                    modLabel.setForeground(Color.WHITE);
+                    
+                    modCapsule.add(chainIcon);
+                    modCapsule.add(modLabel);
+                    cellPanel.add(modCapsule);
+                    return cellPanel;
+                    
+                case 3: // ACCIÓN
+                    JPanel actCapsule = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0)) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(new Color(0x22, 0xc5, 0x5e, 15));
+                            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                            g2.setColor(GREEN);
+                            g2.setStroke(new BasicStroke(1.0f));
+                            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                            g2.dispose();
+                        }
+                    };
+                    actCapsule.setOpaque(false);
+                    actCapsule.setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
+                    
+                    JLabel pencilIcon = new JLabel() {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(GREEN);
+                            g2.setStroke(new BasicStroke(1.2f));
+                            g2.drawRect(2, 2, 2, 8);
+                            g2.drawLine(2, 2, 4, 4);
+                            g2.dispose();
+                        }
+                        @Override
+                        public Dimension getPreferredSize() {
+                            return new Dimension(8, 12);
+                        }
+                    };
+                    
+                    JLabel actLabel = new JLabel(text.toUpperCase());
+                    actLabel.setFont(new Font("Segoe UI", Font.BOLD, 9));
+                    actLabel.setForeground(GREEN);
+                    
+                    actCapsule.add(pencilIcon);
+                    actCapsule.add(actLabel);
+                    cellPanel.add(actCapsule);
+                    return cellPanel;
+                    
+                case 4: // DESCRIPCIÓN
+                default:
+                    JLabel descLabel = new JLabel(text);
+                    descLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                    descLabel.setForeground(TXT_SECONDARY);
+                    cellPanel.add(descLabel);
+                    return cellPanel;
+            }
+        }
+    }
+
+    class FichasTableCellRenderer implements TableCellRenderer {
+        private final DefaultTableCellRenderer defaultRenderer = new DefaultTableCellRenderer();
+        
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            String text = value != null ? value.toString() : "";
+            
+            JPanel cellPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+            cellPanel.setOpaque(true);
+            cellPanel.setBackground(BG_DARK);
+            if (isSelected) {
+                cellPanel.setBackground(BG_CARD);
+            }
+            
+            switch (column) {
+                case 0: // NOMBRE
+                    JLabel nameLabel = new JLabel(text);
+                    nameLabel.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                    nameLabel.setForeground(BLUE);
+                    nameLabel.setCursor(new Cursor(Cursor.HAND_CURSOR));
+                    cellPanel.add(nameLabel);
+                    return cellPanel;
+                    
+                case 1: // INSTRUCTORES
+                case 2: // APRENDICES
+                    JPanel countCapsule = new JPanel(new BorderLayout()) {
+                        @Override
+                        protected void paintComponent(Graphics g) {
+                            Graphics2D g2 = (Graphics2D) g.create();
+                            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                            g2.setColor(new Color(0x22, 0xc5, 0x5e, 10));
+                            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+                            g2.setColor(GREEN);
+                            g2.setStroke(new BasicStroke(1.0f));
+                            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
+                            g2.dispose();
+                        }
+                    };
+                    countCapsule.setOpaque(false);
+                    countCapsule.setBorder(BorderFactory.createEmptyBorder(2, 10, 2, 10));
+                    JLabel countLabel = new JLabel(text);
+                    countLabel.setFont(new Font("Segoe UI", Font.BOLD, 11));
+                    countLabel.setForeground(GREEN);
+                    countCapsule.add(countLabel, BorderLayout.CENTER);
+                    cellPanel.add(countCapsule);
+                    return cellPanel;
+                    
+                case 3: // CÓDIGO
+                    JLabel codeLabel = new JLabel(text);
+                    codeLabel.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+                    codeLabel.setForeground(TXT_SECONDARY);
+                    cellPanel.add(codeLabel);
+                    return cellPanel;
+                    
+                case 4: // ACCIONES
+                    JPanel actionsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+                    actionsPanel.setOpaque(false);
+                    
+                    ActionIconButton btnVer = new ActionIconButton(0, BLUE);
+                    ActionIconButton btnEditar = new ActionIconButton(1, TXT_SECONDARY);
+                    ActionIconButton btnAsignar = new ActionIconButton(2, GREEN);
+                    ActionIconButton btnEliminar = new ActionIconButton(3, new Color(0xef, 0x44, 0x44));
+                    
+                    actionsPanel.add(btnVer);
+                    actionsPanel.add(btnEditar);
+                    actionsPanel.add(btnAsignar);
+                    actionsPanel.add(btnEliminar);
+                    
+                    return actionsPanel;
+                    
+                default:
+                    return defaultRenderer.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            }
+        }
+    }
+
+    class FichasTableCellEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
+        private final JPanel panel;
+        private final ActionIconButton btnVer;
+        private final ActionIconButton btnEditar;
+        private final ActionIconButton btnAsignar;
+        private final ActionIconButton btnEliminar;
+        private JTable table;
+        private int currentRow;
+        
+        public FichasTableCellEditor() {
+            panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+            panel.setOpaque(true);
+            panel.setBackground(BG_CARD);
+            
+            btnVer = new ActionIconButton(0, BLUE);
+            btnEditar = new ActionIconButton(1, TXT_SECONDARY);
+            btnAsignar = new ActionIconButton(2, GREEN);
+            btnEliminar = new ActionIconButton(3, new Color(0xef, 0x44, 0x44));
+            
+            btnVer.addActionListener(this);
+            btnEditar.addActionListener(this);
+            btnAsignar.addActionListener(this);
+            btnEliminar.addActionListener(this);
+            
+            panel.add(btnVer);
+            panel.add(btnEditar);
+            panel.add(btnAsignar);
+            panel.add(btnEliminar);
+        }
+        
+        @Override
+        public Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+            this.table = table;
+            this.currentRow = row;
+            panel.setBackground(table.getSelectionBackground());
+            return panel;
+        }
+        
+        @Override
+        public Object getCellEditorValue() {
+            return "";
+        }
+        
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            Object src = e.getSource();
+            fireEditingStopped();
+            
+            int idCurso = (Integer) table.getModel().getValueAt(currentRow, 5);
+            String name = table.getModel().getValueAt(currentRow, 0).toString();
+            
+            if (src == btnVer) {
+                System.out.println("[ACCIONES] Ver Ficha ID: " + idCurso + " - " + name);
+            } else if (src == btnEditar) {
+                editarFichaAccion(idCurso);
+            } else if (src == btnAsignar) {
+                asignarFichaAccion(idCurso, name);
+            } else if (src == btnEliminar) {
+                eliminarFichaAccion(idCurso, name);
             }
         }
     }
