@@ -3,28 +3,7 @@
     <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
     <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
         <group>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/AdminDashboard.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/AccionHistorial.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/AccionHistorialEnum.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/Aprendiz.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/AprendizBackup.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/Curso.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/CursoAprendiz.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/modelo/CursoInstructor.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/controlador/TestConexion.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/Login.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/controlador/LoginControlador.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/controlador/PasswordUtils.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/controlador/Conexion.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/controlador/DatabaseSetup.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/ReportesView.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/RolesView.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/SidebarButton.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/StatCard.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/CursosView.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/DashboardView.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/EmpresasView.java</file>
-            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/Theme.java</file>
+            <file>file:/C:/Users/robin/OneDrive/Documentos/NetBeansProjects/EtapaProductiva/src/vista/InstructorDashboard.java</file>
         </group>
     </open-files>
 </project-private>
