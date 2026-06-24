@@ -6,6 +6,7 @@ package vista;
 
 import java.awt.*;
 import javax.swing.JInternalFrame;
+import vista.vistaAdministrador.AdminDashboard;
 
 /**
  *
