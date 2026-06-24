@@ -202,51 +202,45 @@ public class AdminDashboard extends JInternalFrame {
         JPanel sidebar = new JPanel() {
             @Override
             protected void paintComponent(Graphics g) {
-                // Glass sidebar paint
-                Theme.paintGlassEffect(g, this, 0, Theme.BG_SIDEBAR_GLASS, Theme.BORDER_GLASS);
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x14, 0x14, 0x14));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(new Color(0x22, 0x22, 0x22));
+                g2.drawLine(0, 0, 0, getHeight());
+                g2.dispose();
             }
         };
         sidebar.setOpaque(false);
         sidebar.setPreferredSize(new Dimension(220, 0));
+        sidebar.setMaximumSize(new Dimension(220, Integer.MAX_VALUE));
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
 
-        JPanel brand = new JPanel(new BorderLayout());
+        // ── Brand ──
+        JPanel brand = new JPanel();
         brand.setOpaque(false);
-        brand.setBorder(new EmptyBorder(24, 0, 20, 0));
-        brand.setAlignmentX(Component.LEFT_ALIGNMENT);
+        brand.setLayout(new BoxLayout(brand, BoxLayout.Y_AXIS));
+        brand.setBorder(new EmptyBorder(20, 16, 16, 16));
+        brand.setMaximumSize(new Dimension(220, 70));
 
-        JPanel brandCenter = new JPanel();
-        brandCenter.setOpaque(false);
-        brandCenter.setLayout(new BoxLayout(brandCenter, BoxLayout.Y_AXIS));
-
-        JTextField brandTitle = new JTextField("AdminConsole");
-        brandTitle.setFont(new Font("Segoe UI", Font.BOLD, 18));
+        JLabel brandTitle = new JLabel("AdminConsole");
+        brandTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         brandTitle.setForeground(Color.WHITE);
-        brandTitle.setBackground(new Color(0, 0, 0, 0));
-        brandTitle.setOpaque(false);
-        brandTitle.setBorder(null);
-        brandTitle.setHorizontalAlignment(SwingConstants.CENTER);
-        brandTitle.setEditable(false);
-        brandTitle.setFocusable(false);
+        brandTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JTextField brandSub = new JTextField("GLOBAL PRACTICE MGMT");
-        brandSub.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        JLabel brandSub = new JLabel("GLOBAL PRACTICE MGMT");
+        brandSub.setFont(new Font("Segoe UI", Font.BOLD, 9));
         brandSub.setForeground(TXT_DIM);
-        brandSub.setBackground(new Color(0, 0, 0, 0));
-        brandSub.setOpaque(false);
-        brandSub.setBorder(null);
-        brandSub.setHorizontalAlignment(SwingConstants.CENTER);
-        brandSub.setEditable(false);
+        brandSub.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        brandCenter.add(brandTitle);
-        brandCenter.add(Box.createVerticalStrut(4));
-        brandCenter.add(brandSub);
-
-        brand.add(brandCenter, BorderLayout.CENTER);
+        brand.add(brandTitle);
+        brand.add(Box.createVerticalStrut(2));
+        brand.add(brandSub);
 
         sidebar.add(brand);
-        sidebar.add(Box.createRigidArea(new Dimension(0, 10)));
+        sidebar.add(Box.createRigidArea(new Dimension(0, 6)));
 
+        // ── Menu items ──
         String[] labels = {"Panel", "Fichas/Cursos", "Usuarios", "Roles", "Instructores", "Empresas", "Historial", "Backup"};
         String[] headers = {"Panel de Administraci\u00f3n Global", "Gesti\u00f3n de Fichas y Cursos",
                 "Gesti\u00f3n de Usuarios", "Administraci\u00f3n de Roles",
@@ -267,13 +261,10 @@ public class AdminDashboard extends JInternalFrame {
             sidebar.add(btn);
         }
 
+        // ── Push logout to bottom ──
         sidebar.add(Box.createVerticalGlue());
 
-        JSeparator sep = new JSeparator();
-        sep.setMaximumSize(new Dimension(220, 1));
-        sep.setForeground(BORDER);
-        sidebar.add(sep);
-
+        // ── Logout button ──
         int btnR = 14;
         JButton logoutBtn = new JButton("CERRAR SESI\u00d3N \u2192") {
             private final Color startColor = GREEN;
@@ -301,7 +292,7 @@ public class AdminDashboard extends JInternalFrame {
         logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
         logoutBtn.setForeground(Color.BLACK);
         logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        logoutBtn.setMaximumSize(new Dimension(220, 44));
+        logoutBtn.setMaximumSize(new Dimension(196, 40));
         logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         logoutBtn.addMouseListener(new java.awt.event.MouseAdapter() {
             @Override public void mouseEntered(java.awt.event.MouseEvent e) { logoutBtn.repaint(); }
@@ -313,8 +304,9 @@ public class AdminDashboard extends JInternalFrame {
         });
         JPanel logoutWrapper = new JPanel(new BorderLayout());
         logoutWrapper.setOpaque(false);
-        logoutWrapper.setBorder(new EmptyBorder(0, 12, 16, 12));
+        logoutWrapper.setBorder(new EmptyBorder(8, 12, 20, 12));
         logoutWrapper.setMaximumSize(new Dimension(220, 60));
+        logoutWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
         logoutWrapper.add(logoutBtn, BorderLayout.CENTER);
         sidebar.add(logoutWrapper);
 
