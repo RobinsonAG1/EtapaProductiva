@@ -78,7 +78,7 @@ public class LoginControlador {
                     return "Tu cuenta est\u00e1 desactivada. Contacta al administrador.";
                 }
 
-                boolean verified = PasswordUtils.verify(password, storedHash);
+                boolean verified = modelo.ContrasenaUtil.verificarUniversal(password, storedHash);
                 if (!verified) {
                     return "Credenciales incorrectas. Verifica tu correo y contrase\u00f1a.";
                 }
