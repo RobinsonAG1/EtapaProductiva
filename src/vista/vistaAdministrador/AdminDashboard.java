@@ -274,91 +274,49 @@ public class AdminDashboard extends JInternalFrame {
         sep.setForeground(BORDER);
         sidebar.add(sep);
 
-        JPanel userPanelWrapper = new JPanel(new BorderLayout());
-        userPanelWrapper.setOpaque(false);
-        userPanelWrapper.setBorder(new EmptyBorder(12, 12, 16, 12));
-        userPanelWrapper.setMaximumSize(new Dimension(220, 80));
-        userPanelWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JPanel userPanel = new JPanel() {
-            @Override
-            protected void paintComponent(Graphics g) {
-                // Glass user profile
-                Theme.paintGlassEffect(g, this, 20, new Color(255, 255, 255, 12), Theme.BORDER_GLASS);
-            }
-        };
-        userPanel.setOpaque(false);
-        userPanel.setLayout(new BorderLayout(10, 0));
-        userPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-        userPanel.setPreferredSize(new Dimension(196, 54));
-        userPanel.setMaximumSize(new Dimension(196, 54));
-        userPanel.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
-        JPanel avatar = new JPanel() {
+        int btnR = 14;
+        JButton logoutBtn = new JButton("CERRAR SESI\u00d3N \u2192") {
+            private final Color startColor = GREEN;
+            private final Color endColor = GREEN.darker();
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(GREEN);
-                g2.fillOval(0, 0, 34, 34);
-                g2.setColor(new Color(0x0a, 0x0a, 0x0a));
-                g2.setStroke(new BasicStroke(2f));
-                g2.drawOval(11, 4, 12, 12);
-                g2.drawLine(17, 17, 17, 26);
-                g2.drawLine(10, 20, 17, 17);
-                g2.drawLine(24, 20, 17, 17);
+                int w = getWidth();
+                int h = getHeight();
+                Color cS = getModel().isPressed() ? startColor.darker() : getModel().isRollover() ? startColor.brighter() : startColor;
+                Color cE = getModel().isPressed() ? endColor.darker() : getModel().isRollover() ? startColor : endColor;
+                g2.setPaint(new LinearGradientPaint(0, 0, w, 0, new float[]{0f, 1f}, new Color[]{cS, cE}));
+                g2.fillRoundRect(0, 0, w, h, btnR, btnR);
+                g2.setColor(new Color(255, 255, 255, 45));
+                g2.drawRoundRect(0, 0, w - 1, h - 1, btnR, btnR);
                 g2.dispose();
+                super.paintComponent(g);
             }
         };
-        avatar.setPreferredSize(new Dimension(34, 34));
-        avatar.setOpaque(false);
-
-        JPanel userInfo = new JPanel();
-        userInfo.setOpaque(false);
-        userInfo.setLayout(new BoxLayout(userInfo, BoxLayout.Y_AXIS));
-
-        JLabel userName = new JLabel(controlador.Sesion.getNombreCompleto());
-        userName.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        userName.setForeground(Color.WHITE);
-
-        JLabel userRole = new JLabel(controlador.Sesion.esAdmin() ? "Superusuario" : "Administrador");
-        userRole.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        userRole.setForeground(TXT_SECONDARY);
-
-        userInfo.add(userName);
-        userInfo.add(Box.createVerticalStrut(2));
-        userInfo.add(userRole);
-
-        JLabel arrow = new JLabel("\u25BC");
-        arrow.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-        arrow.setForeground(TXT_DIM);
-        arrow.setHorizontalAlignment(SwingConstants.CENTER);
-
-        userPanel.add(avatar, BorderLayout.WEST);
-        userPanel.add(userInfo, BorderLayout.CENTER);
-        userPanel.add(arrow, BorderLayout.EAST);
-
-        userPanelWrapper.add(userPanel, BorderLayout.CENTER);
-        sidebar.add(userPanelWrapper);
-
-        // Logout button
-        JButton logoutBtn = new JButton("CERRAR SESI\u00d3N");
-        logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 10));
-        logoutBtn.setForeground(Color.WHITE);
-        logoutBtn.setBackground(new Color(0x33, 0x33, 0x33));
-        logoutBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(0x44, 0x44, 0x44), 1),
-                BorderFactory.createEmptyBorder(10, 16, 10, 16)));
-        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setOpaque(false);
+        logoutBtn.setContentAreaFilled(false);
+        logoutBtn.setBorderPainted(false);
         logoutBtn.setFocusPainted(false);
-        logoutBtn.setMaximumSize(new Dimension(220, 36));
+        logoutBtn.setFont(new Font("Segoe UI", Font.BOLD, 11));
+        logoutBtn.setForeground(Color.BLACK);
+        logoutBtn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        logoutBtn.setMaximumSize(new Dimension(220, 44));
         logoutBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoutBtn.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseEntered(java.awt.event.MouseEvent e) { logoutBtn.repaint(); }
+            @Override public void mouseExited(java.awt.event.MouseEvent e) { logoutBtn.repaint(); }
+        });
         logoutBtn.addActionListener(e -> {
             JFrame top = (JFrame) SwingUtilities.getWindowAncestor(this);
             if (top instanceof MDI) ((MDI) top).cerrarSesion();
         });
-        sidebar.add(logoutBtn);
-        sidebar.add(Box.createRigidArea(new Dimension(0, 8)));
+        JPanel logoutWrapper = new JPanel(new BorderLayout());
+        logoutWrapper.setOpaque(false);
+        logoutWrapper.setBorder(new EmptyBorder(0, 12, 16, 12));
+        logoutWrapper.setMaximumSize(new Dimension(220, 60));
+        logoutWrapper.add(logoutBtn, BorderLayout.CENTER);
+        sidebar.add(logoutWrapper);
 
         return sidebar;
     }
