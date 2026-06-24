@@ -74,12 +74,52 @@ public class Login extends JFrame {
         stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
         stack.setBorder(new EmptyBorder(s(40), 0, 0, 0));
 
-        // Brand
+        // Brand with SENA Logo
         JPanel brandLine = new JPanel(new FlowLayout(FlowLayout.CENTER, s(10), 0));
         brandLine.setOpaque(false);
-        JLabel iconLabel = new JLabel(new MortarboardIcon(scale));
-        brandLine.add(iconLabel);
-        JLabel brandTitle = new JLabel("SENA PRÁCTICAS");
+        
+        // SENA Logo Panel (Java2D drawn)
+        JPanel senaLogo = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int w = getWidth();
+                int h = getHeight();
+                int baseY = h / 2;
+                int fontSize = Math.min(w, h) / 2;
+                g2.setFont(new Font("Segoe UI", Font.BOLD, fontSize));
+                FontMetrics fm = g2.getFontMetrics();
+                String text = "SENA";
+                int textWidth = fm.stringWidth(text);
+                int x = (w - textWidth) / 2;
+                int y = baseY + fm.getAscent() / 3;
+                
+                // SENA green color (#39A900 institutional)
+                Color senaGreen = new Color(0x39, 0xA9, 0x00);
+                g2.setColor(senaGreen);
+                g2.drawString(text, x, y);
+                
+                // Subtitle
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, fontSize / 3));
+                String sub = "Servicio Nacional de Aprendizaje";
+                FontMetrics fm2 = g2.getFontMetrics();
+                int subWidth = fm2.stringWidth(sub);
+                g2.setColor(new Color(0xAA, 0xAA, 0xAA));
+                g2.drawString(sub, (w - subWidth) / 2, y + fontSize / 2 + 5);
+                
+                g2.dispose();
+            }
+            @Override
+            public Dimension getPreferredSize() {
+                return new Dimension(s(300), s(60));
+            }
+        };
+        senaLogo.setOpaque(false);
+        brandLine.add(senaLogo);
+        
+        JLabel brandTitle = new JLabel("PRÁCTICAS SENA");
         brandTitle.setFont(new Font("Segoe UI", Font.BOLD, s(20)));
         brandTitle.setForeground(Color.WHITE);
         brandLine.add(brandTitle);

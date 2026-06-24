@@ -270,7 +270,7 @@ public class InstructorDashboard extends JInternalFrame {
                     }
 
                     // Fichas asignadas
-                    String sqlF = "SELECT c.id_curso, c.codigo_ficha, c.nombre, "
+                    String sqlF = "SELECT c.id_curso, c.ficha, c.nombre, "
                                 + "COUNT(DISTINCT ca.id_aprendiz) as aprendices, "
                                 + "COALESCE(SUM(CASE WHEN e.estado = 'Entregada' THEN 1 ELSE 0 END), 0) as pendientes "
                                 + "FROM curso c "
@@ -278,14 +278,14 @@ public class InstructorDashboard extends JInternalFrame {
                                 + "LEFT JOIN curso_aprendiz ca ON c.id_curso = ca.id_curso "
                                 + "LEFT JOIN evidencia e ON ca.id_aprendiz = e.id_aprendiz "
                                 + "WHERE ci.id_instructor = ? "
-                                + "GROUP BY c.id_curso, c.codigo_ficha, c.nombre";
+                                + "GROUP BY c.id_curso, c.ficha, c.nombre";
                     java.util.List<Object[]> filas = new java.util.ArrayList<>();
                     try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlF)) {
                         ps.setInt(1, idInstructor);
                         try (java.sql.ResultSet rs = ps.executeQuery()) {
                             while (rs.next()) {
                                 filas.add(new Object[]{
-                                    rs.getString("codigo_ficha"),
+                                    rs.getString("ficha"),
                                     rs.getString("nombre"),
                                     rs.getInt("aprendices"),
                                     rs.getInt("pendientes")
@@ -380,7 +380,7 @@ public class InstructorDashboard extends JInternalFrame {
                     if (idInst < 0) { conn.close(); return; }
 
                     String filtro = txtBuscar.getText().trim();
-                    String sql = "SELECT c.id_curso, c.codigo_ficha, c.nombre, "
+                    String sql = "SELECT c.id_curso, c.ficha, c.nombre, "
                                + "COUNT(DISTINCT ca.id_aprendiz) as aprendices, "
                                + "COALESCE(SUM(CASE WHEN e.estado = 'Entregada' THEN 1 ELSE 0 END), 0) as pendientes "
                                + "FROM curso c "
@@ -388,8 +388,8 @@ public class InstructorDashboard extends JInternalFrame {
                                + "LEFT JOIN curso_aprendiz ca ON c.id_curso = ca.id_curso "
                                + "LEFT JOIN evidencia e ON ca.id_aprendiz = e.id_aprendiz "
                                + "WHERE ci.id_instructor = ? "
-                               + (filtro.isEmpty() ? "" : "AND (c.codigo_ficha ILIKE ? OR c.nombre ILIKE ?) ")
-                               + "GROUP BY c.id_curso, c.codigo_ficha, c.nombre";
+                               + (filtro.isEmpty() ? "" : "AND (c.ficha ILIKE ? OR c.nombre ILIKE ?) ")
+                               + "GROUP BY c.id_curso, c.ficha, c.nombre";
                     try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setInt(1, idInst);
                         if (!filtro.isEmpty()) {
@@ -402,7 +402,7 @@ public class InstructorDashboard extends JInternalFrame {
                             while (rs.next()) {
                                 filas.add(new Object[]{
                                     rs.getInt("id_curso"),
-                                    rs.getString("codigo_ficha"),
+                                    rs.getString("ficha"),
                                     rs.getString("nombre"),
                                     rs.getInt("aprendices"),
                                     rs.getInt("pendientes"),
@@ -475,7 +475,7 @@ public class InstructorDashboard extends JInternalFrame {
         new Thread(() -> {
             try {
                 java.sql.Connection conn = controlador.Conexion.getInstance().getConnection();
-                String sqlF = "SELECT nombre, codigo_ficha, fecha_inicio, fecha_fin FROM curso WHERE id_curso = ?";
+                String sqlF = "SELECT nombre, ficha, fecha_inicio, fecha_fin FROM curso WHERE id_curso = ?";
                 String nomCurso = "", fInicio = "", fFin = "";
                 try (java.sql.PreparedStatement ps = conn.prepareStatement(sqlF)) {
                     ps.setInt(1, idCurso);
