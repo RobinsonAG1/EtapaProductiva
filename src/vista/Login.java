@@ -222,7 +222,7 @@ public class Login extends JFrame {
         btnIngresar.setForeground(Color.BLACK);
         btnIngresar.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btnIngresar.setPreferredSize(new Dimension(s(284), s(44)));
-        btnIngresar.addActionListener(e -> LoginControlador.login(txtCorreo, txtPassword, this));
+        btnIngresar.addActionListener(e -> LoginControlador.login(txtCorreo, txtPassword, this, btnIngresar));
         btnIngresar.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseEntered(MouseEvent e) {

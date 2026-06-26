@@ -9,20 +9,18 @@ public class Conexion {
     private static final String USER = "admin";
     private static final String PASSWORD = "1052020405Nr.";
     private static Conexion instance;
-    private Connection connection;
 
     private Conexion() {
         try {
             Class.forName("org.postgresql.Driver");
-            System.out.println("✅ Driver PostgreSQL cargado exitosamente");
-           
+            System.out.println("\u2705 Driver PostgreSQL cargado exitosamente");
         } catch (ClassNotFoundException e) {
-            System.err.println("❌ Error: Driver PostgreSQL no encontrado");
+            System.err.println("\u274c Error: Driver PostgreSQL no encontrado");
             throw new RuntimeException("Driver PostgreSQL no encontrado", e);
         }
     }
 
-    public static Conexion getInstance() {
+    public static synchronized Conexion getInstance() {
         if (instance == null) {
             instance = new Conexion();
         }
@@ -30,35 +28,16 @@ public class Conexion {
     }
 
     public Connection getConnection() throws SQLException {
-        if (connection == null || connection.isClosed()) {
-            try {
-                connection = DriverManager.getConnection(URL, USER, PASSWORD);
-                System.out.println("✅ Conexión a BD establecida correctamente");
-                System.out.println("   📍 Host: 144.91.74.225:5433");
-                System.out.println("   🗄️  Base de datos: master_db");
-                System.out.println("   👤 Usuario: " + USER);
-            } catch (SQLException e) {
-                System.err.println("❌ Error al conectar a la base de datos:");
-                System.err.println("   Host: " + URL);
-                System.err.println("   Usuario: " + USER);
-                System.err.println("   Detalle: " + e.getMessage());
-                throw e;
-            }
-        } else {
-            System.out.println("ℹ️  Usando conexión existente");
-        }
-        return connection;
+        Connection conn = DriverManager.getConnection(URL, USER, PASSWORD);
+        System.out.println("\u2705 Conexi\u00f3n a BD establecida correctamente");
+        System.out.println("   \ud83d\udccd Host: 144.91.74.225:5433");
+        System.out.println("   \ud83d\uddc4\ufe0f  Base de datos: master_db");
+        System.out.println("   \ud83d\udc64 Usuario: " + USER);
+        return conn;
     }
 
     public void close() {
-        if (connection != null) {
-            try {
-                connection.close();
-                System.out.println("✅ Conexión cerrada correctamente");
-            } catch (SQLException e) {
-                System.err.println("❌ Error al cerrar la conexión: " + e.getMessage());
-            }
-        }
+        // No-op: connections are now managed per-caller
     }
 
     // Método para probar la conexión

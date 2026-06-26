@@ -14,7 +14,7 @@ import java.sql.SQLException;
 
 public class LoginControlador {
 
-    public static void login(JTextField correo, JPasswordField password, JFrame loginFrame) {
+    public static void login(JTextField correo, JPasswordField password, JFrame loginFrame, javax.swing.JButton btnIngresar) {
         String user = correo.getText().trim();
         String pass = new String(password.getPassword()).trim();
 
@@ -34,10 +34,13 @@ public class LoginControlador {
             return;
         }
 
+        btnIngresar.setEnabled(false);
+
         new Thread(() -> {
             String resultado = validarCredenciales(user, pass);
             javax.swing.SwingUtilities.invokeLater(() -> {
                 if (resultado != null) {
+                    btnIngresar.setEnabled(true);
                     JOptionPane.showMessageDialog(loginFrame,
                             "Error de autenticaci\u00f3n: " + resultado,
                             "Error", JOptionPane.ERROR_MESSAGE);
